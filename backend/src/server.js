@@ -16,6 +16,7 @@ const logger = require('./utils/logger');
 // Import routes
 const authRoutes = require('./routes/auth');
 const analyticsRoutes = require('./routes/analytics');
+const monitoringRoutes = require('./routes/monitoring');
 
 // Initialize Express app
 const app = express();
@@ -80,6 +81,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/monitoring', monitoringRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

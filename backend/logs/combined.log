@@ -16,3 +16,7 @@
 {"level":"info","message":"MongoDB Connected: mongodb","service":"cosmic-insights-api","timestamp":"2025-10-11 21:47:06"}
 {"level":"info","message":"SIGTERM received. Shutting down gracefully...","service":"cosmic-insights-api","timestamp":"2025-10-11 22:03:05"}
 {"level":"info","message":"Process terminated","service":"cosmic-insights-api","timestamp":"2025-10-11 22:03:05"}
+{"level":"info","message":"Server running in development mode on port 5000","service":"cosmic-insights-api","timestamp":"2025-10-11 22:03:07"}
+{"level":"info","message":"MongoDB Connected: mongodb","service":"cosmic-insights-api","timestamp":"2025-10-11 22:03:07"}
+{"level":"info","message":"SIGTERM received. Shutting down gracefully...","service":"cosmic-insights-api","timestamp":"2025-10-11 23:34:13"}
+{"level":"info","message":"Process terminated","service":"cosmic-insights-api","timestamp":"2025-10-11 23:34:13"}
