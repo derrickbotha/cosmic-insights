@@ -1,0 +1,29 @@
+{
+  "short_name": "Cosmic Insights",
+  "name": "Cosmic Insights - Astrology App",
+  "description": "Your personal astrology companion powered by AI. Discover cosmic insights, track your journey, and connect with your higher self.",
+  "icons": [
+    {
+      "src": "/icon-192x192.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#6366f1",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["lifestyle", "health", "wellness"],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
