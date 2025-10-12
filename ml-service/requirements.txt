@@ -1,0 +1,28 @@
+# ML Service for Cosmic Insights
+# Python-based microservice for embeddings, vector search, and ML training
+
+Django==4.2.7
+djangorestframework==3.14.0
+psycopg2-binary==2.9.9
+pymongo==4.6.0
+qdrant-client==1.7.0
+sentence-transformers==2.2.2
+celery==5.3.4
+redis==5.0.1
+boto3==1.34.0
+minio==7.2.0
+python-dotenv==1.0.0
+gunicorn==21.2.0
+torch==2.1.0
+transformers==4.35.0
+numpy==1.24.3
+pandas==2.1.3
+scikit-learn==1.3.2
+requests==2.31.0
+pillow==10.1.0
+python-multipart==0.0.6
+uvicorn==0.24.0
+pydantic==2.5.0
+cryptography==41.0.7
+django-cors-headers==4.3.1
+flower==2.0.1
