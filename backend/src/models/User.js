@@ -28,9 +28,37 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxlength: [100, 'Name cannot exceed 100 characters']
   },
+  username: {
+    type: String,
+    unique: true,
+    sparse: true, // Allow null values to be unique
+    trim: true,
+    lowercase: true,
+    minlength: [3, 'Username must be at least 3 characters'],
+    maxlength: [30, 'Username cannot exceed 30 characters'],
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Allow empty username
+        return /^[a-z0-9_]+$/.test(v);
+      },
+      message: 'Username can only contain lowercase letters, numbers, and underscores'
+    }
+  },
+  profileImage: {
+    type: String,
+    default: null,
+    validate: {
+      validator: function(v) {
+        if (!v) return true;
+        // Accept URLs or base64 data
+        return /^(https?:\/\/.+|data:image\/.+)/.test(v);
+      },
+      message: 'Profile image must be a valid URL or base64 data'
+    }
+  },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'admin', 'ml_admin', 'analytics_admin'],
     default: 'user'
   },
   tier: {
