@@ -119,6 +119,15 @@ exports.login = async (req, res) => {
       });
     }
 
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        success: false,
+        error: 'Please verify your email before logging in. Check your inbox for the verification link.',
+        emailVerificationRequired: true
+      });
+    }
+
     // Verify password
     const isPasswordValid = await user.comparePassword(password);
 
@@ -392,59 +401,31 @@ exports.resetPassword = async (req, res) => {
  * @route GET /api/auth/verify-email/:token
  * @access Public
  */
-exports.verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.params;
-
-    // Hash the token from URL
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
-
-    // Find user with valid verification token
-    const user = await User.findOne({
-      emailVerificationToken: hashedToken,
-      emailVerificationExpires: { $gt: Date.now() }
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid or expired verification token'
-      });
-    }
-
-    // Mark email as verified
-    user.emailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
-
-    await user.save({ validateBeforeSave: false });
-
-    logger.logAuth('email_verified', user._id, { email: user.email });
-
-    res.json({
-      success: true,
-      message: 'Email verified successfully'
-    });
-  } catch (error) {
-    logger.logError(error, req);
-    res.status(500).json({
-      success: false,
-      error: 'Email verification failed. Please try again.'
-    });
-  }
-};
-
 /**
  * Resend verification email
  * @route POST /api/auth/resend-verification
- * @access Private
+ * @access Public (requires email)
  */
 exports.resendVerification = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      // Don't reveal if email exists
+      return res.json({
+        success: true,
+        message: 'If your email is registered, you will receive a verification link.'
+      });
+    }
 
     if (user.emailVerified) {
       return res.status(400).json({
@@ -457,14 +438,23 @@ exports.resendVerification = async (req, res) => {
     const verificationToken = user.createEmailVerificationToken();
     await user.save({ validateBeforeSave: false });
 
-    // TODO: Send verification email
-    // await emailService.sendVerificationEmail(user.email, verificationToken);
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, user.name, verificationToken);
+      logger.info(`Verification email resent to ${user.email}`);
+    } catch (emailError) {
+      logger.error('Failed to resend verification email:', emailError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to send verification email. Please try again later.'
+      });
+    }
 
     logger.logAuth('verification_email_resent', user._id, { email: user.email });
 
     res.json({
       success: true,
-      message: 'Verification email has been sent'
+      message: 'Verification email has been sent. Please check your inbox.'
     });
   } catch (error) {
     logger.logError(error, req);
