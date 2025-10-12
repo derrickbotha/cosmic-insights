@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import authService from '../services/authService';
 
 /**
  * LandingPage Component
@@ -14,32 +15,64 @@ const LandingPage = ({ onLogin, onRegister, darkMode }) => {
     username: ''
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showResendLink, setShowResendLink] = useState(false);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
+    
+    console.log('Form submitted!', { showLogin, formData: { ...formData, password: '***', confirmPassword: '***' } });
     
     try {
       if (showLogin) {
+        console.log('Attempting login...');
         const result = await onLogin(formData.email, formData.password);
+        console.log('Login result:', result);
         if (!result.success) {
           setError(result.error || 'Login failed. Please check your credentials.');
+          
+          // Check if email verification is required
+          if (result.emailVerificationRequired) {
+            setShowResendLink(true);
+            setPendingVerificationEmail(formData.email);
+          }
         }
       } else {
         if (formData.password !== formData.confirmPassword) {
+          console.log('Password mismatch');
           setError('Passwords do not match');
           setLoading(false);
           return;
         }
-        if (formData.password.length < 8) {
-          setError('Password must be at least 8 characters long');
+        
+        // Enhanced password validation
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!passwordRegex.test(formData.password)) {
+          console.log('Password validation failed');
+          setError('Password must be at least 8 characters with uppercase, lowercase, and number');
           setLoading(false);
           return;
         }
+        
+        console.log('Calling onRegister...');
         const result = await onRegister(formData.email, formData.password, formData.name, formData.username || null);
-        if (!result.success) {
+        console.log('Registration result:', result);
+        if (result.success) {
+          setSuccess(result.message || 'Registration successful! Please check your email to verify your account.');
+          // Clear form on success
+          setFormData({
+            email: '',
+            password: '',
+            confirmPassword: '',
+            name: '',
+            username: ''
+          });
+        } else {
           setError(result.error || 'Registration failed. Please try again.');
         }
       }
@@ -53,6 +86,27 @@ const LandingPage = ({ onLogin, onRegister, darkMode }) => {
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear resend link when user starts typing
+    if (field === 'email' || field === 'password') {
+      setShowResendLink(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    const result = await authService.resendVerification(pendingVerificationEmail);
+
+    setLoading(false);
+
+    if (result.success) {
+      setSuccess(result.message || 'Verification email sent! Please check your inbox.');
+      setShowResendLink(false);
+    } else {
+      setError(result.error || 'Failed to resend verification email.');
+    }
   };
 
   return (
@@ -165,11 +219,34 @@ const LandingPage = ({ onLogin, onRegister, darkMode }) => {
                 {/* Error Message */}
                 {error && (
                   <div className="p-4 mb-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <p className="text-sm text-red-600 dark:text-red-400 font-medium">{error}</p>
+                      <div className="flex-1">
+                        <p className="text-sm text-red-600 dark:text-red-400 font-medium">{error}</p>
+                        {showResendLink && (
+                          <button
+                            onClick={handleResendVerification}
+                            disabled={loading}
+                            className="mt-2 text-sm text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 font-medium underline disabled:opacity-50"
+                          >
+                            Resend verification email
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Success Message */}
+                {success && (
+                  <div className="p-4 mb-4 bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm text-green-600 dark:text-green-400 font-medium">{success}</p>
                     </div>
                   </div>
                 )}
@@ -239,6 +316,11 @@ const LandingPage = ({ onLogin, onRegister, darkMode }) => {
                       placeholder="••••••••"
                       className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     />
+                    {!showLogin && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Minimum 8 characters with uppercase, lowercase, and number
+                      </p>
+                    )}
                   </div>
 
                   {!showLogin && (
