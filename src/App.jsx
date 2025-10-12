@@ -13,6 +13,8 @@ import CookieConsent from './components/CookieConsent';
 import AdminDashboard from './components/AdminDashboard';
 import PaymentModal from './components/PaymentModal';
 import MonitoringDashboard from './components/MonitoringDashboard';
+import MLAdminDashboard from './components/MLAdminDashboard';
+import UserProfile from './components/UserProfile';
 
 // Services
 import authService from './services/authService';
@@ -298,12 +300,12 @@ function App() {
   };
 
   // Handle register with authService
-  const handleRegister = async (email, password, name, astroData = null) => {
+  const handleRegister = async (email, password, name, username = null, astroData = null) => {
     try {
       // Prepare user data with astrological info if available
       const userData = astroData ? { astrology: astroData } : {};
       
-      const result = await authService.register(email, password, name, userData);
+      const result = await authService.register(email, password, name, username, userData);
       
       if (result.success && result.user) {
         setIsLoggedIn(true);
@@ -414,6 +416,24 @@ function App() {
         } else {
           return <div className="text-center py-12 text-gray-500">Access denied. Admin privileges required.</div>;
         }
+      case 'ml-admin':
+        // Only show ML admin dashboard if user is ml_engineer or analytics_admin
+        if (currentUser?.role === 'ml_engineer' || currentUser?.role === 'analytics_admin') {
+          return <MLAdminDashboard currentUser={currentUser} />;
+        } else {
+          return (
+            <div className="text-center py-12">
+              <h2 className="text-2xl font-bold text-gray-700 mb-4">Access Denied</h2>
+              <p className="text-gray-500 mb-6">You need ML Engineer or Analytics Admin privileges to access this page.</p>
+              <button 
+                onClick={() => setCurrentPage('dashboard')}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Return to Dashboard
+              </button>
+            </div>
+          );
+        }
       default:
         return <Questionnaire onComplete={handleQuestionnaireComplete} initialData={userData} userTier={userTier} />;
     }
@@ -512,6 +532,21 @@ function App() {
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      ),
+      requiresCompletion: false,
+      adminOnly: true
+    });
+  }
+
+  // Add ML Admin navigation item if user is ml_engineer or analytics_admin
+  if (currentUser?.role === 'ml_engineer' || currentUser?.role === 'analytics_admin') {
+    navigationItems.push({
+      id: 'ml-admin',
+      name: 'ML Admin',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
         </svg>
       ),
       requiresCompletion: false,
@@ -728,61 +763,14 @@ function App() {
 
               {/* Right Side: User Info & Actions */}
               {isLoggedIn ? (
-                <div className="flex items-center gap-3">
-                  {/* User Name (hidden on mobile) */}
-                  <div className="hidden md:flex flex-col items-end">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {currentUser?.name || userData?.name || 'User'}
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                      {userTier} Plan
-                    </span>
-                  </div>
-
-                  {/* Logout Button */}
-                  <button 
-                    onClick={handleLogout}
-                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm font-medium hidden sm:block"
-                  >
-                    Logout
-                  </button>
-
-                  {/* Profile Icon (Circular) */}
-                  <button
-                    onClick={() => setCurrentPage('profile')}
-                    className="relative group"
-                    title="My Profile"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white font-bold shadow-lg hover:shadow-xl transition-all ring-2 ring-white dark:ring-gray-800 overflow-hidden">
-                      {currentUser?.profilePicture || userData?.profilePicture ? (
-                        <img 
-                          src={currentUser?.profilePicture || userData?.profilePicture} 
-                          alt={currentUser?.name || 'Profile'} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-lg">
-                          {(currentUser?.name || userData?.name || 'U')[0].toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    {/* Hover tooltip */}
-                    <div className="absolute right-0 mt-2 py-1 px-3 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                      View Profile
-                    </div>
-                  </button>
-
-                  {/* Mobile Logout Icon */}
-                  <button 
-                    onClick={handleLogout}
-                    className="sm:hidden p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    title="Logout"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                  </button>
-                </div>
+                <UserProfile 
+                  user={{
+                    name: currentUser?.name || userData?.name || 'User',
+                    username: currentUser?.username || userData?.username || (currentUser?.email || userData?.email || '').split('@')[0],
+                    profileImage: currentUser?.profileImage || userData?.profileImage || null
+                  }}
+                  onLogout={handleLogout}
+                />
               ) : (
                 <button 
                   onClick={() => setShowLoginModal(true)}
