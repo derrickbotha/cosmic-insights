@@ -139,9 +139,15 @@ class AuthService {
       }
     } catch (error) {
       console.error('Login failed:', error);
+      
+      // Check if error is related to email verification
+      const isEmailVerificationError = error.message && 
+        (error.message.includes('verify your email') || error.message.includes('email verification'));
+      
       return {
         success: false,
-        error: error.message || 'Login failed. Please try again.'
+        error: error.message || 'Login failed. Please try again.',
+        emailVerificationRequired: isEmailVerificationError
       };
     }
   }
@@ -150,16 +156,22 @@ class AuthService {
    * Register new user
    */
   async register(email, password, name, username = null, userData = {}) {
+    console.log('authService.register called with:', { email, name, username, hasUserData: !!userData });
+    
     try {
       // Validate input
       if (!this.validateEmail(email)) {
+        console.error('Email validation failed');
         throw new Error('Invalid email format');
       }
 
       if (!this.validatePassword(password)) {
+        console.error('Password validation failed');
         throw new Error('Password must be at least 8 characters with uppercase, lowercase, and number');
       }
 
+      console.log('Sending registration request to:', `${this.apiUrl}/auth/register`);
+      
       const response = await fetch(`${this.apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
@@ -175,30 +187,34 @@ class AuthService {
         })
       });
 
+      console.log('Registration response status:', response.status);
       const data = await response.json();
+      console.log('Registration response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Registration failed');
       }
 
       if (data.success && data.data) {
-        // Store access token
-        this.setToken(data.data.accessToken);
+        // Backend returns basic user data (no token on registration)
+        // User needs to verify email then login
         
-        // Store user data
-        localStorage.setItem('cosmic_user', JSON.stringify(data.data.user));
-        localStorage.setItem('isLoggedIn', 'true');
-
         // Track registration event
         this.trackEvent('user_registered', { 
-          userId: data.data.user._id, 
-          email: data.data.user.email 
+          userId: data.data.userId, 
+          email: data.data.email 
         });
 
         return {
           success: true,
-          user: data.data.user,
-          token: data.data.accessToken
+          message: data.message || 'Registration successful',
+          user: {
+            _id: data.data.userId,
+            email: data.data.email,
+            name: data.data.name,
+            username: data.data.username,
+            emailVerified: data.data.emailVerified
+          }
         };
       } else {
         throw new Error('Invalid response from server');
@@ -432,7 +448,8 @@ class AuthService {
 
   validatePassword(password) {
     // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
-    const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
+    // Allows any characters (not restricted to specific character set)
+    const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
     return re.test(password);
   }
 
@@ -524,6 +541,77 @@ class AuthService {
     localStorage.setItem(key, JSON.stringify(recentAttempts));
 
     return { allowed: true };
+  }
+
+  /**
+   * Verify email with token
+   */
+  async verifyEmail(token) {
+    console.log('authService.verifyEmail called with token');
+    
+    try {
+      const response = await fetch(`${this.apiUrl}/auth/verify-email/${token}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Verify email response status:', response.status);
+      const data = await response.json();
+      console.log('Verify email response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Email verification failed');
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Email verified successfully'
+      };
+    } catch (error) {
+      console.error('Email verification failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Email verification failed. Please try again.'
+      };
+    }
+  }
+
+  /**
+   * Resend verification email
+   */
+  async resendVerification(email) {
+    console.log('authService.resendVerification called for:', email);
+    
+    try {
+      const response = await fetch(`${this.apiUrl}/auth/resend-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      });
+
+      console.log('Resend verification response status:', response.status);
+      const data = await response.json();
+      console.log('Resend verification response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend verification email');
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Verification email sent successfully'
+      };
+    } catch (error) {
+      console.error('Resend verification failed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to resend verification email. Please try again.'
+      };
+    }
   }
 }
 
