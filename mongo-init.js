@@ -27,8 +27,8 @@ db.createCollection('users', {
           description: 'must be between 2 and 50 characters'
         },
         role: {
-          enum: ['user', 'admin'],
-          description: 'must be either user or admin'
+          enum: ['user', 'admin', 'ml_admin', 'analytics_admin'],
+          description: 'must be user, admin, ml_admin, or analytics_admin'
         },
         tier: {
           enum: ['free', 'premium', 'pro'],
