@@ -292,7 +292,11 @@ function App() {
         return { success: true };
       }
       
-      return { success: false, error: result.error || 'Login failed' };
+      return { 
+        success: false, 
+        error: result.error || 'Login failed',
+        emailVerificationRequired: result.emailVerificationRequired || false
+      };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, error: error.message || 'Login failed' };
@@ -308,26 +312,8 @@ function App() {
       const result = await authService.register(email, password, name, username, userData);
       
       if (result.success && result.user) {
-        setIsLoggedIn(true);
-        setCurrentUser(result.user);
-        setShowLoginModal(false);
-        
-        // Set user tier
-        if (result.user.tier) {
-          setUserTier(result.user.tier);
-        }
-        
-        // If registering with astro data, set it up
-        if (result.user.astrology) {
-          const questionnaireData = {
-            ...result.user.astrology,
-            name: result.user.name,
-            email: result.user.email
-          };
-          setUserData(questionnaireData);
-          setQuestionnaireCompleted(true);
-          setCurrentPage('dashboard');
-        }
+        // Registration successful - backend doesn't return token
+        // User needs to verify email then login
         
         // Track registration event
         if (analyticsEnabled) {
@@ -337,7 +323,12 @@ function App() {
           });
         }
         
-        return { success: true };
+        // Return success with message
+        return { 
+          success: true, 
+          message: result.message || 'Registration successful! Please check your email to verify your account.',
+          requiresEmailVerification: true
+        };
       }
       
       return { success: false, error: result.error || 'Registration failed' };
