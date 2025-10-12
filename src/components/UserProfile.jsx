@@ -6,6 +6,11 @@ import { User, LogOut } from 'lucide-react';
  * Displays user avatar and username with logout button
  */
 const UserProfile = ({ user, onLogout }) => {
+  // Safety check - if no user, don't render
+  if (!user) {
+    return null;
+  }
+
   // Generate initials from name for default avatar
   const getInitials = (name) => {
     if (!name) return '?';
@@ -66,10 +71,10 @@ const UserProfile = ({ user, onLogout }) => {
       {/* User Info */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-          {user.name}
+          {user.name || 'User'}
         </p>
         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-          @{user.username || user.email.split('@')[0]}
+          @{user.username || (user.email ? user.email.split('@')[0] : 'user')}
         </p>
       </div>
 
