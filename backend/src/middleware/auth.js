@@ -233,11 +233,57 @@ const validateRefreshToken = async (req, res, next) => {
   }
 };
 
+/**
+ * Check if user has any admin role
+ */
+const isAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      error: 'Not authenticated'
+    });
+  }
+
+  const adminRoles = ['admin', 'ml_admin', 'analytics_admin'];
+  if (!adminRoles.includes(req.user.role)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Admin access required'
+    });
+  }
+
+  next();
+};
+
+/**
+ * Check if user has ML admin permissions
+ */
+const requireMLAdmin = authorize('admin', 'ml_admin');
+
+/**
+ * Check if user has analytics admin permissions
+ */
+const requireAnalyticsAdmin = authorize('admin', 'analytics_admin');
+
+/**
+ * Helper function to check if a role is an admin role
+ * @param {string} role - User role to check
+ * @returns {boolean} - True if role is admin, ml_admin, or analytics_admin
+ */
+const isAdminRole = (role) => {
+  const adminRoles = ['admin', 'ml_admin', 'analytics_admin'];
+  return adminRoles.includes(role);
+};
+
 module.exports = {
   authenticate,
   authorize,
   requireTier,
   optionalAuth,
   csrfProtection,
-  validateRefreshToken
+  validateRefreshToken,
+  isAdmin,
+  requireMLAdmin,
+  requireAnalyticsAdmin,
+  isAdminRole
 };

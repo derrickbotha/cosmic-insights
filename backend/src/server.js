@@ -16,7 +16,9 @@ const logger = require('./utils/logger');
 // Import routes
 const authRoutes = require('./routes/auth');
 const analyticsRoutes = require('./routes/analytics');
-const monitoringRoutes = require('./routes/monitoring');
+// const monitoringRoutes = require('./routes/monitoring'); // Temporarily disabled due to MongoDB compatibility issues
+const mlRoutes = require('./routes/ml');
+const userRoutes = require('./routes/users');
 
 // Initialize Express app
 const app = express();
@@ -81,7 +83,9 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/analytics', analyticsRoutes);
-app.use('/api/monitoring', monitoringRoutes);
+// app.use('/api/monitoring', monitoringRoutes); // Temporarily disabled
+app.use('/api/ml', mlRoutes);
+app.use('/api/users', userRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

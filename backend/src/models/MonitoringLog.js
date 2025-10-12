@@ -4,7 +4,6 @@ const monitoringLogSchema = new mongoose.Schema({
   sessionId: {
     type: String,
     required: true,
-    index: true,
   },
   logId: {
     type: String,
@@ -14,27 +13,22 @@ const monitoringLogSchema = new mongoose.Schema({
   timestamp: {
     type: Date,
     required: true,
-    index: true,
   },
   level: {
     type: String,
     enum: ['info', 'warn', 'error', 'debug'],
     required: true,
-    index: true,
   },
   category: {
     type: String,
     enum: ['lifecycle', 'interaction', 'api', 'error', 'state', 'performance', 'navigation', 'storage'],
     required: true,
-    index: true,
   },
   component: {
     type: String,
-    index: true,
   },
   action: {
     type: String,
-    index: true,
   },
   actionType: {
     type: String,
@@ -61,8 +55,8 @@ const monitoringLogSchema = new mongoose.Schema({
   status: Number,
   
   // Error data
-  error: String,
-  stack: String,
+  errorMessage: String,
+  errorStack: String,
   
   // Performance data
   duration: Number,
@@ -87,7 +81,7 @@ const monitoringLogSchema = new mongoose.Schema({
   props: mongoose.Schema.Types.Mixed,
   result: String,
   interactions: Number,
-  errors: Number,
+  errorCount: Number,
   
   // Browser/User data
   url: String,
