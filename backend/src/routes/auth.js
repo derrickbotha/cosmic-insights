@@ -67,9 +67,9 @@ router.get('/verify-email/:token', authController.verifyEmail);
 /**
  * @route   POST /api/auth/resend-verification
  * @desc    Resend email verification
- * @access  Private
+ * @access  Public
  */
-router.post('/resend-verification', authenticate, authController.resendVerification);
+router.post('/resend-verification', authLimiter, authController.resendVerification);
 
 /**
  * @route   GET /api/auth/me
@@ -84,5 +84,12 @@ router.get('/me', authenticate, authController.getCurrentUser);
  * @access  Private
  */
 router.patch('/profile', authenticate, updateProfileValidation, authController.updateProfile);
+
+/**
+ * @route   PATCH /api/auth/profile-image
+ * @desc    Update user profile image
+ * @access  Private
+ */
+router.patch('/profile-image', authenticate, authController.updateProfileImage);
 
 module.exports = router;

@@ -3,6 +3,7 @@ const User = require('../models/User');
 const { generateAccessToken, generateRefreshToken, generateCSRFToken } = require('../config/security');
 const { refreshTokenCookieConfig, cookieConfig } = require('../config/security');
 const logger = require('../utils/logger');
+const { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } = require('../config/email');
 
 /**
  * Register a new user
@@ -11,7 +12,7 @@ const logger = require('../utils/logger');
  */
 exports.register = async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, username, profileImage } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -22,11 +23,27 @@ exports.register = async (req, res) => {
       });
     }
 
+    // Check if username is taken (if provided)
+    if (username) {
+      const existingUsername = await User.findOne({ username: username.toLowerCase() });
+      if (existingUsername) {
+        return res.status(400).json({
+          success: false,
+          error: 'Username already taken'
+        });
+      }
+    }
+
+    // Generate default username from email if not provided
+    const finalUsername = username || email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
+
     // Create user
     const user = await User.create({
       email,
       password,
       name,
+      username: finalUsername,
+      profileImage: profileImage || null,
       role: 'user',
       tier: 'free'
     });
@@ -35,10 +52,16 @@ exports.register = async (req, res) => {
     const verificationToken = user.createEmailVerificationToken();
     await user.save({ validateBeforeSave: false });
 
-    // TODO: Send verification email
-    // await emailService.sendVerificationEmail(user.email, verificationToken);
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, user.name, verificationToken);
+      logger.info(`Verification email sent to ${user.email}`);
+    } catch (emailError) {
+      logger.error('Failed to send verification email:', emailError);
+      // Continue even if email fails
+    }
 
-    logger.logAuth('user_registered', user._id, { email, name });
+    logger.logAuth('user_registered', user._id, { email, name, username: finalUsername });
 
     res.status(201).json({
       success: true,
@@ -47,6 +70,7 @@ exports.register = async (req, res) => {
         userId: user._id,
         email: user.email,
         name: user.name,
+        username: user.username,
         emailVerified: user.emailVerified
       }
     });
@@ -160,6 +184,8 @@ exports.login = async (req, res) => {
           userId: user._id,
           email: user.email,
           name: user.name,
+          username: user.username,
+          profileImage: user.profileImage,
           role: user.role,
           tier: user.tier,
           emailVerified: user.emailVerified,
@@ -540,6 +566,168 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Profile update failed. Please try again.'
+    });
+  }
+};
+
+/**
+ * Verify email address
+ * @route GET /api/auth/verify-email/:token
+ * @access Public
+ */
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Hash the token
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with valid verification token
+    const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+      emailVerificationExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid or expired verification token'
+      });
+    }
+
+    // Mark email as verified
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(user.email, user.name);
+    } catch (emailError) {
+      logger.error('Failed to send welcome email:', emailError);
+      // Continue even if email fails
+    }
+
+    logger.logAuth('email_verified', user._id, { email: user.email });
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully. You can now login.',
+      data: {
+        userId: user._id,
+        email: user.email,
+        emailVerified: true
+      }
+    });
+  } catch (error) {
+    logger.logError(error, req);
+    res.status(500).json({
+      success: false,
+      error: 'Email verification failed. Please try again.'
+    });
+  }
+};
+
+/**
+ * Resend verification email
+ * @route POST /api/auth/resend-verification
+ * @access Public
+ */
+exports.resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    if (user.emailVerified) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email already verified'
+      });
+    }
+
+    // Generate new verification token
+    const verificationToken = user.createEmailVerificationToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, user.name, verificationToken);
+    } catch (emailError) {
+      logger.error('Failed to send verification email:', emailError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to send verification email. Please try again later.'
+      });
+    }
+
+    logger.info(`Verification email resent to ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Verification email sent. Please check your inbox.'
+    });
+  } catch (error) {
+    logger.logError(error, req);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to resend verification email. Please try again.'
+    });
+  }
+};
+
+/**
+ * Update profile image
+ * @route PATCH /api/auth/profile-image
+ * @access Private
+ */
+exports.updateProfileImage = async (req, res) => {
+  try {
+    const { profileImage } = req.body;
+
+    if (!profileImage) {
+      return res.status(400).json({
+        success: false,
+        error: 'Profile image URL is required'
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      { $set: { profileImage } },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    logger.logAuth('profile_image_updated', user._id, { email: user.email });
+
+    res.json({
+      success: true,
+      message: 'Profile image updated successfully',
+      data: {
+        userId: user._id,
+        profileImage: user.profileImage
+      }
+    });
+  } catch (error) {
+    logger.logError(error, req);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update profile image. Please try again.'
     });
   }
 };
