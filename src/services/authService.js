@@ -149,7 +149,7 @@ class AuthService {
   /**
    * Register new user
    */
-  async register(email, password, name, userData = {}) {
+  async register(email, password, name, username = null, userData = {}) {
     try {
       // Validate input
       if (!this.validateEmail(email)) {
@@ -170,6 +170,7 @@ class AuthService {
           email, 
           password, 
           name,
+          username: username || undefined, // Only include if provided
           ...userData // Include astrological data if provided
         })
       });

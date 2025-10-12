@@ -10,7 +10,8 @@ const LandingPage = ({ onLogin, onRegister, darkMode }) => {
     email: '',
     password: '',
     confirmPassword: '',
-    name: ''
+    name: '',
+    username: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,7 @@ const LandingPage = ({ onLogin, onRegister, darkMode }) => {
           setLoading(false);
           return;
         }
-        const result = await onRegister(formData.email, formData.password, formData.name);
+        const result = await onRegister(formData.email, formData.password, formData.name, formData.username || null);
         if (!result.success) {
           setError(result.error || 'Registration failed. Please try again.');
         }
@@ -176,20 +177,40 @@ const LandingPage = ({ onLogin, onRegister, darkMode }) => {
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {!showLogin && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        required={!showLogin}
-                        placeholder="Your name"
-                        disabled={loading}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                    </div>
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Full Name
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => handleInputChange('name', e.target.value)}
+                          required={!showLogin}
+                          placeholder="Your name"
+                          disabled={loading}
+                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Username <span className="text-gray-500 dark:text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.username}
+                          onChange={(e) => handleInputChange('username', e.target.value)}
+                          placeholder="Choose a unique username"
+                          pattern="[a-z0-9_]{3,30}"
+                          title="Lowercase letters, numbers, and underscores only (3-30 characters)"
+                          disabled={loading}
+                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Leave blank to auto-generate from email
+                        </p>
+                      </div>
+                    </>
                   )}
 
                   <div>
