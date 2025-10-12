@@ -66,7 +66,7 @@ router.get('/verify-email/:token', authController.verifyEmail);
 
 /**
  * @route   POST /api/auth/resend-verification
- * @desc    Resend email verification
+ * @desc    Resend email verification (requires email in body)
  * @access  Public
  */
 router.post('/resend-verification', authLimiter, authController.resendVerification);
