@@ -1,0 +1,294 @@
+# Docker Compose with Mailpit (Development Email Server)
+# Mailpit provides a local SMTP server with a web UI to view emails
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: cosmic-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: cosmic-insights
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - cosmic-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/cosmic-insights --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Mailpit - SMTP Server with Web UI
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: cosmic-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"  # Web UI
+      - "1025:1025"  # SMTP server
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+      MP_MAX_MESSAGES: 500
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - mailpit_data:/data
+    networks:
+      - cosmic-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8025/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: cosmic-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      MONGODB_URI: mongodb://mongodb:27017/cosmic-insights
+      
+      # Email Configuration - Mailpit (Override .env email settings)
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: 1025
+      EMAIL_SECURE: "false"
+      EMAIL_USER: cosmicinsights@localhost
+      EMAIL_PASSWORD: changeme123
+      EMAIL_FROM_NAME: Cosmic Insights
+      EMAIL_FROM_ADDRESS: noreply@localhost
+      
+      # App Configuration
+      CLIENT_URL: http://localhost:4000
+      APP_NAME: Cosmic Insights
+      
+      # CORS
+      CORS_ORIGIN: http://localhost:4000
+      
+      # Rate Limiting
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+      
+      # Logging
+      LOG_LEVEL: info
+      
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./backend/logs:/app/logs
+    depends_on:
+      - mongodb
+      - mailpit
+    networks:
+      - cosmic-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: npm run dev
+
+  # ML Service (Python/Django)
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cosmic-ml-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DATABASE_URL: postgresql://postgres:postgres@postgres-ml:5432/cosmic_ml
+      MONGODB_URI: mongodb://mongodb:27017/cosmic-insights
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET_NAME: cosmic-insights
+    volumes:
+      - ./ml-service:/app
+      - ml_service_data:/app/data
+      - ./ml-service/logs:/app/logs
+    depends_on:
+      - postgres-ml
+      - redis
+      - qdrant
+      - minio
+    networks:
+      - cosmic-network
+    command: python manage.py runserver 0.0.0.0:8000
+
+  # PostgreSQL for ML Service
+  postgres-ml:
+    image: postgres:15-alpine
+    container_name: cosmic-postgres-ml
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cosmic_ml
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_ml_data:/var/lib/postgresql/data
+    networks:
+      - cosmic-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cosmic-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - cosmic-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6333/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: cosmic-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - cosmic-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: cosmic-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - cosmic-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cosmic-celery-worker
+    restart: unless-stopped
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DATABASE_URL: postgresql://postgres:postgres@postgres-ml:5432/cosmic_ml
+      MONGODB_URI: mongodb://mongodb:27017/cosmic-insights
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - ./ml-service:/app
+      - ml_service_data:/app/data
+    depends_on:
+      - redis
+      - postgres-ml
+      - mongodb
+    networks:
+      - cosmic-network
+    command: celery -A config worker --loglevel=info
+
+  # Celery Beat (Scheduler)
+  celery-beat:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cosmic-celery-beat
+    restart: unless-stopped
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DATABASE_URL: postgresql://postgres:postgres@postgres-ml:5432/cosmic_ml
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+    volumes:
+      - ./ml-service:/app
+    depends_on:
+      - redis
+      - postgres-ml
+    networks:
+      - cosmic-network
+    command: celery -A config beat --loglevel=info
+
+  # Flower (Celery Monitoring)
+  flower:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cosmic-flower
+    restart: unless-stopped
+    ports:
+      - "5555:5555"
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      FLOWER_PORT: 5555
+    depends_on:
+      - redis
+      - celery-worker
+    networks:
+      - cosmic-network
+    command: celery -A config flower --port=5555
+
+volumes:
+  mongodb_data:
+  postgres_ml_data:
+  qdrant_data:
+  minio_data:
+  redis_data:
+  ml_service_data:
+  mailpit_data:
+
+networks:
+  cosmic-network:
+    driver: bridge

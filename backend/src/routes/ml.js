@@ -4,9 +4,15 @@
  */
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const mlService = require('../services/mlService');
 const { authenticate, requireMLAdmin } = require('../middleware/auth');
+const { mlRateLimitConfig } = require('../config/security');
+const { mlDocumentValidation, mlSearchValidation } = require('../middleware/validation');
 const dataSyncController = require('../controllers/dataSyncController');
+
+// Apply rate limiting to prevent abuse of expensive ML operations
+const mlLimiter = rateLimit(mlRateLimitConfig);
 
 /**
  * @route   GET /api/ml/health
@@ -41,7 +47,7 @@ router.get('/health', async (req, res) => {
  * @desc    Create document and generate embedding
  * @access  Private
  */
-router.post('/documents', authenticate, async (req, res) => {
+router.post('/documents', mlLimiter, authenticate, async (req, res) => {
   try {
     const { title, text, documentType, metadata } = req.body;
 

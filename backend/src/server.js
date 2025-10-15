@@ -3,6 +3,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const compression = require('compression');
@@ -11,14 +12,16 @@ const morgan = require('morgan');
 
 const connectDB = require('./config/database');
 const { corsOptions, rateLimitConfig, securityHeaders } = require('./config/security');
+const { sanitizeInput } = require('./middleware/validation');
 const logger = require('./utils/logger');
 
 // Import routes
 const authRoutes = require('./routes/auth');
 const analyticsRoutes = require('./routes/analytics');
-// const monitoringRoutes = require('./routes/monitoring'); // Temporarily disabled due to MongoDB compatibility issues
+// const monitoringRoutes = require('./routes/monitoring'); // Disabled: Causes app crash, needs debugging
 const mlRoutes = require('./routes/ml');
 const userRoutes = require('./routes/users');
+const sessionRoutes = require('./routes/sessionRoutes');
 
 // Initialize Express app
 const app = express();
@@ -48,6 +51,32 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Cookie parser
 app.use(cookieParser(process.env.COOKIE_SECRET));
+
+// CSRF Protection (enabled for state-changing operations)
+const csrfProtection = csrf({
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict'
+  }
+});
+
+// Apply CSRF to all routes except GET/HEAD/OPTIONS, health checks, and auth endpoints
+app.use((req, res, next) => {
+  // Skip CSRF for safe methods and health check
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || req.path === '/health') {
+    return next();
+  }
+  // Skip CSRF for auth endpoints (they have their own CSRF handling)
+  if (req.path.startsWith('/api/auth/')) {
+    return next();
+  }
+  // Apply CSRF protection
+  csrfProtection(req, res, next);
+});
+
+// XSS sanitization (apply to all requests)
+app.use(sanitizeInput);
 
 // Data sanitization against NoSQL injection
 app.use(mongoSanitize());
@@ -80,12 +109,21 @@ app.get('/health', (req, res) => {
   });
 });
 
+// CSRF token endpoint (must be GET to bypass CSRF)
+app.get('/api/csrf-token', csrfProtection, (req, res) => {
+  res.json({
+    success: true,
+    csrfToken: req.csrfToken()
+  });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/analytics', analyticsRoutes);
-// app.use('/api/monitoring', monitoringRoutes); // Temporarily disabled
+// app.use('/api/monitoring', monitoringRoutes); // Disabled: Causes app crash, needs debugging
 app.use('/api/ml', mlRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/user/sessions', sessionRoutes); // Session management
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const { generateAccessToken, generateRefreshToken, generateCSRFToken } = require('../config/security');
 const { refreshTokenCookieConfig, cookieConfig } = require('../config/security');
+const sessionService = require('../services/sessionService');
 const logger = require('../utils/logger');
 const { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } = require('../config/email');
 
@@ -76,6 +77,25 @@ exports.register = async (req, res) => {
     });
   } catch (error) {
     logger.logError(error, req);
+    
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        error: messages.join(', ')
+      });
+    }
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        error: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: 'Registration failed. Please try again.'
@@ -84,21 +104,35 @@ exports.register = async (req, res) => {
 };
 
 /**
- * Login user
+ * Login user (accepts email OR username)
  * @route POST /api/auth/login
  * @access Public
  */
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, username } = req.body;
 
-    // Find user (include password field)
-    const user = await User.findOne({ email }).select('+password +loginAttempts +lockUntil');
+    // Support login with email OR username
+    const identifier = email || username;
+    if (!identifier) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email or username is required'
+      });
+    }
+
+    // Find user by email OR username (include password field)
+    const user = await User.findOne({
+      $or: [
+        { email: identifier.toLowerCase() },
+        { username: identifier.toLowerCase() }
+      ]
+    }).select('+password +loginAttempts +lockUntil');
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid email or password'
+        error: 'Invalid credentials'
       });
     }
 
@@ -152,15 +186,23 @@ exports.login = async (req, res) => {
       await user.resetLoginAttempts();
     }
 
-    // Generate tokens
-    const accessToken = generateAccessToken(user._id, user.email, user.role);
-    const refreshToken = generateRefreshToken(user._id);
+    // PRODUCTION-READY: Create session with device tracking
+    const refreshToken = generateRefreshToken(user._id, null); // Generate first, then create session
+    const session = await sessionService.createSession(
+      user._id.toString(),
+      user.email,
+      user.role,
+      refreshToken,
+      req
+    );
 
-    // Calculate refresh token expiry (7 days)
-    const refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-    // Save refresh token to database
-    await user.addRefreshToken(refreshToken, refreshTokenExpiry);
+    // Generate access token WITH session_id
+    const accessToken = generateAccessToken(
+      user._id,
+      user.email,
+      user.role,
+      session.session_id
+    );
 
     // Generate CSRF token
     const csrfToken = generateCSRFToken();
@@ -212,20 +254,23 @@ exports.login = async (req, res) => {
 };
 
 /**
- * Logout user
+ * Logout user (PRODUCTION-READY: Revokes session in Redis)
  * @route POST /api/auth/logout
  * @access Private
  */
 exports.logout = async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
-
-    if (refreshToken) {
-      // Remove refresh token from database
-      const user = await User.findById(req.user.userId);
-      if (user) {
-        await user.removeRefreshToken(refreshToken);
-      }
+    // Revoke session from Redis if session_id is present
+    if (req.user.sessionId) {
+      await sessionService.revokeSession(
+        req.user.sessionId,
+        req.user.userId.toString(),
+        'user_logout'
+      );
+      logger.info('Session revoked on logout', {
+        sessionId: req.user.sessionId,
+        userId: req.user.userId
+      });
     }
 
     // Clear cookies
@@ -252,25 +297,92 @@ exports.logout = async (req, res) => {
  * @route POST /api/auth/refresh
  * @access Public (requires refresh token)
  */
+/**
+ * Refresh access token (PRODUCTION-READY: Token rotation with theft detection)
+ * @route POST /api/auth/refresh
+ * @access Private
+ */
 exports.refreshToken = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const providedRefreshToken = req.cookies.refreshToken;
+    
+    if (!providedRefreshToken) {
+      return res.status(401).json({
+        success: false,
+        error: 'No refresh token provided'
+      });
+    }
 
-    // Remove old refresh token
-    await user.removeRefreshToken(req.refreshToken);
+    // Get session_id from current access token (if available)
+    const sessionId = req.user.sessionId;
+    
+    if (!sessionId) {
+      // Fallback to old flow if no session_id (backward compatibility)
+      const user = await User.findById(req.user.userId);
+      const accessToken = generateAccessToken(user._id, user.email, user.role);
+      const csrfToken = generateCSRFToken();
+      
+      return res.json({
+        success: true,
+        message: 'Token refreshed successfully',
+        data: { accessToken, csrfToken }
+      });
+    }
 
-    // Generate new tokens
-    const accessToken = generateAccessToken(user._id, user.email, user.role);
-    const newRefreshToken = generateRefreshToken(user._id);
-    const refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    // PRODUCTION MODE: Validate and rotate refresh token
+    const validation = await sessionService.validateAndRotateRefreshToken(
+      providedRefreshToken,
+      sessionId
+    );
 
-    // Save new refresh token
-    await user.addRefreshToken(newRefreshToken, refreshTokenExpiry);
+    // Handle token theft detection
+    if (!validation.valid) {
+      if (validation.security_alert) {
+        logger.warn('⚠️ SECURITY ALERT: Refresh token reuse detected', {
+          sessionId,
+          userId: req.user.userId,
+          ip: req.ip,
+          userAgent: req.get('user-agent')
+        });
+
+        // TODO: Send security alert email to user
+        // await sendSecurityAlertEmail(user.email, 'Token theft detected');
+
+        return res.status(401).json({
+          success: false,
+          error: 'Security violation detected. All sessions have been revoked. Please login again.',
+          code: 'TOKEN_THEFT_DETECTED'
+        });
+      }
+
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired refresh token',
+        code: validation.reason
+      });
+    }
+
+    // Generate new refresh token and rotate
+    const newRefreshToken = generateRefreshToken(
+      validation.session.user_id,
+      sessionId
+    );
+
+    // Update session with new refresh token hash
+    await sessionService.rotateRefreshToken(sessionId, newRefreshToken);
+
+    // Generate new access token with session_id
+    const accessToken = generateAccessToken(
+      validation.session.user_id,
+      validation.session.email,
+      validation.session.role,
+      sessionId
+    );
 
     // Generate new CSRF token
     const csrfToken = generateCSRFToken();
 
-    // Set new tokens in cookies
+    // Set new refresh token in cookie
     res.cookie('refreshToken', newRefreshToken, {
       ...refreshTokenCookieConfig,
       secure: process.env.NODE_ENV === 'production'
@@ -281,7 +393,10 @@ exports.refreshToken = async (req, res) => {
       secure: process.env.NODE_ENV === 'production'
     });
 
-    logger.logAuth('token_refreshed', user._id, { email: user.email });
+    logger.info('Token rotated successfully', {
+      sessionId,
+      userId: validation.session.user_id
+    });
 
     res.json({
       success: true,
@@ -561,7 +676,7 @@ exports.updateProfile = async (req, res) => {
 };
 
 /**
- * Verify email address
+ * Verify email address with automatic login
  * @route GET /api/auth/verify-email/:token
  * @access Public
  */
@@ -589,6 +704,8 @@ exports.verifyEmail = async (req, res) => {
     user.emailVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
+    user.lastLogin = new Date();
+    user.lastActive = new Date();
     await user.save({ validateBeforeSave: false });
 
     // Send welcome email
@@ -599,15 +716,58 @@ exports.verifyEmail = async (req, res) => {
       // Continue even if email fails
     }
 
-    logger.logAuth('email_verified', user._id, { email: user.email });
+    // AUTOMATIC LOGIN: Create session and generate tokens
+    const refreshToken = generateRefreshToken(user._id, null);
+    const session = await sessionService.createSession(
+      user._id.toString(),
+      user.email,
+      user.role,
+      refreshToken,
+      req
+    );
+
+    // Generate access token with session_id
+    const accessToken = generateAccessToken(
+      user._id,
+      user.email,
+      user.role,
+      session.session_id
+    );
+
+    // Generate CSRF token
+    const csrfToken = generateCSRFToken();
+
+    // Set tokens in cookies
+    res.cookie('refreshToken', refreshToken, {
+      ...refreshTokenCookieConfig,
+      secure: process.env.NODE_ENV === 'production'
+    });
+
+    res.cookie('csrfToken', csrfToken, {
+      ...cookieConfig,
+      secure: process.env.NODE_ENV === 'production'
+    });
+
+    logger.logAuth('email_verified_with_autologin', user._id, { email: user.email });
 
     res.json({
       success: true,
-      message: 'Email verified successfully. You can now login.',
+      message: 'Email verified successfully! You are now logged in.',
+      autoLogin: true,
       data: {
-        userId: user._id,
-        email: user.email,
-        emailVerified: true
+        accessToken,
+        csrfToken,
+        user: {
+          userId: user._id,
+          email: user.email,
+          name: user.name,
+          username: user.username,
+          profileImage: user.profileImage,
+          role: user.role,
+          tier: user.tier,
+          emailVerified: true,
+          subscriptionStatus: user.subscriptionStatus
+        }
       }
     });
   } catch (error) {

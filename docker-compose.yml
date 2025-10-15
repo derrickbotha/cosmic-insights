@@ -43,11 +43,15 @@ services:
       CSRF_SECRET: ${CSRF_SECRET:-dev_csrf_secret_change_in_production}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev_encryption_key_32_chars_12}
       COOKIE_SECRET: ${COOKIE_SECRET:-dev_cookie_secret_change_in_prod}
-      CORS_ORIGIN: http://localhost:3000
+      CORS_ORIGIN: http://localhost:3000,http://localhost:4000
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100
-      CLIENT_URL: http://localhost:3000
+      CLIENT_URL: http://localhost:3000,http://localhost:4000
       ADMIN_EMAILS: admin@cosmicinsights.com
+      # Redis configuration for session management
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
       LOG_LEVEL: debug
       ANALYTICS_RETENTION_DAYS: 90
       MAX_FILE_SIZE: 5242880
@@ -60,6 +64,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - cosmic-network
     healthcheck:
@@ -161,6 +167,53 @@ services:
       timeout: 5s
       retries: 5
 
+  # Backend Admin (Django) - API Management
+  backend-admin:
+    build:
+      context: ./backend-admin
+      dockerfile: Dockerfile
+    container_name: cosmic-backend-admin
+    restart: unless-stopped
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_ADMIN_SECRET:-admin-secret-key-change-in-production}
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: localhost,backend-admin,127.0.0.1
+      POSTGRES_DB: ${POSTGRES_DB:-cosmic_ml}
+      POSTGRES_USER: ${POSTGRES_USER:-mluser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlpassword}
+      POSTGRES_HOST: postgres-ml
+      POSTGRES_PORT: 5432
+      MONGO_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017
+      MONGO_DB_NAME: cosmic-insights
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BACKEND_API_URL: http://backend:5000
+      BACKEND_API_KEY: ${BACKEND_API_KEY:-shared-secret-key-123}
+      LOG_LEVEL: INFO
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./backend-admin:/app
+      - backend_admin_static:/app/staticfiles
+      - backend_admin_media:/app/media
+    depends_on:
+      postgres-ml:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - cosmic-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/admin/login/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # ML Service (Django)
   ml-service:
     build:
@@ -170,7 +223,7 @@ services:
     restart: unless-stopped
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       DJANGO_ALLOWED_HOSTS: localhost,ml-service,127.0.0.1
       POSTGRES_DB: ${POSTGRES_DB:-cosmic_ml}
       POSTGRES_USER: ${POSTGRES_USER:-mluser}
@@ -233,7 +286,7 @@ services:
     command: celery -A config worker -l info --concurrency=2
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       POSTGRES_DB: ${POSTGRES_DB:-cosmic_ml}
       POSTGRES_USER: ${POSTGRES_USER:-mluser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlpassword}
@@ -274,7 +327,7 @@ services:
     command: celery -A config beat -l info
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret-key-change-in-production}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
       POSTGRES_DB: ${POSTGRES_DB:-cosmic_ml}
       POSTGRES_USER: ${POSTGRES_USER:-mluser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlpassword}
@@ -316,6 +369,10 @@ volumes:
   mongodb_config:
     driver: local
   backend_node_modules:
+    driver: local
+  backend_admin_static:
+    driver: local
+  backend_admin_media:
     driver: local
   postgres_ml_data:
     driver: local

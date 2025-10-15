@@ -1,10 +1,12 @@
-const { verifyAccessToken } = require('../config/security');
+const { verifyAccessToken, verifyRefreshToken } = require('../config/security');
 const User = require('../models/User');
+const sessionService = require('../services/sessionService');
 const logger = require('../utils/logger');
 
 /**
- * Authentication middleware
+ * Authentication middleware (PRODUCTION-READY: Validates session_id)
  * Verifies JWT token and attaches user to request
+ * Now checks Redis session for revocation capability
  */
 const authenticate = async (req, res, next) => {
   try {
@@ -23,8 +25,23 @@ const authenticate = async (req, res, next) => {
     // Verify token
     const decoded = verifyAccessToken(token);
 
+    // NEW: Validate session if session_id is present (production mode)
+    if (decoded.session_id) {
+      const session = await sessionService.getSession(decoded.session_id);
+      
+      if (!session) {
+        return res.status(401).json({
+          success: false,
+          error: 'Session has been revoked or expired'
+        });
+      }
+
+      // Update last seen timestamp
+      await sessionService.updateLastSeen(decoded.session_id);
+    }
+
     // Check if user still exists
-    const user = await User.findById(decoded.userId).select('+passwordChangedAt');
+    const user = await User.findById(decoded.userId || decoded.sub).select('+passwordChangedAt');
     
     if (!user) {
       return res.status(401).json({
@@ -49,12 +66,13 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    // Attach user to request
+    // Attach user to request (include session_id for session management)
     req.user = {
       userId: user._id,
       email: user.email,
       role: user.role,
-      tier: user.tier
+      tier: user.tier,
+      sessionId: decoded.session_id || null // For session management endpoints
     };
 
     // Update last active

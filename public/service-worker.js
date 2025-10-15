@@ -1,87 +1,72 @@
 // Service Worker for Cosmic Insights PWA
-const CACHE_NAME = 'cosmic-insights-v1';
+const CACHE_NAME = 'cosmic-insights-v3';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/static/css/main.css',
-  '/static/js/main.js',
-  '/static/js/bundle.js',
   '/manifest.json'
 ];
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache.map(url => {
-          return new Request(url, { cache: 'reload' });
-        })).catch((error) => {
-          console.log('Cache addAll error:', error);
+        console.log('[SW] Cache opened');
+        return cache.addAll(urlsToCache).catch((error) => {
+          console.log('[SW] Cache addAll error:', error);
         });
       })
   );
-  // Force the waiting service worker to become the active service worker
   self.skipWaiting();
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
+            console.log('[SW] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
+    }).then(() => {
+      console.log('[SW] Activated');
+      return self.clients.claim();
     })
   );
-  // Claim clients immediately
-  return self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - minimal interception, let browser handle most requests
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-
-        // Clone the request
-        const fetchRequest = event.request.clone();
-
-        return fetch(fetchRequest).then((response) => {
-          // Check if valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-
-          // Clone the response
-          const responseToCache = response.clone();
-
-          // Don't cache non-GET requests
-          if (event.request.method === 'GET') {
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-          }
-
-          return response;
-        }).catch((error) => {
-          console.log('Fetch failed:', error);
-          // You can return a custom offline page here
-          return caches.match('/offline.html');
-        });
+  const url = event.request.url;
+  
+  // Only intercept same-origin requests for the cached resources
+  if (!url.startsWith(self.location.origin)) {
+    return;
+  }
+  
+  // Never intercept API calls, WebSocket, extensions, or email verification
+  if (url.includes('/api/') || 
+      url.includes('/ws') || 
+      url.includes('chrome-extension') ||
+      url.includes('/verify-email') ||
+      url.includes('token=')) {
+    return;
+  }
+  
+  // Only handle navigation requests (HTML pages)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        return response || fetch(event.request);
       })
-  );
+    );
+  }
 });
 
 // Listen for messages from the client

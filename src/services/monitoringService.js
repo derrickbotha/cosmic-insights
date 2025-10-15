@@ -457,7 +457,7 @@ class MonitoringService {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/monitoring/logs`, {
+      const response = await fetch(`${API_URL}/monitoring/logs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -483,16 +483,25 @@ class MonitoringService {
 
   /**
    * Start auto-flush interval
+   * DISABLED: Backend monitoring endpoint causes app crash
    */
   startAutoFlush() {
-    setInterval(() => {
-      this.flushLogs();
-    }, this.flushInterval);
+    // Temporarily disabled to prevent 404 errors
+    // Backend monitoring route needs debugging before re-enabling
+    
+    // setInterval(() => {
+    //   this.flushLogs();
+    // }, this.flushInterval);
 
-    // Flush on page unload
-    window.addEventListener('beforeunload', () => {
-      this.flushLogs();
-    });
+    // // Flush on page unload
+    // window.addEventListener('beforeunload', () => {
+    //   this.flushLogs();
+    // });
+    
+    // Use debug level to avoid console clutter in development
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('ℹ️ Monitoring: Auto-flush disabled for development');
+    }
   }
 
   /**

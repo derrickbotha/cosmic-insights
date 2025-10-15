@@ -138,17 +138,17 @@ const AIChatInterface = ({ userData, userTier = 'free', chatMessagesToday = 0, c
       <div className="p-4 border-t border-border-light dark:border-border-dark">
         {/* Daily Limit Warning */}
         {chatMessagesToday >= chatLimit * 0.8 && (
-          <div className={`mb-3 p-3 rounded-lg ${
+          <div className={`mb-5 p-5 rounded-lg border-2 ${
             canSendMessage 
-              ? 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200'
-              : 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200'
+              ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 text-yellow-800 dark:text-yellow-200'
+              : 'bg-red-50 dark:bg-red-900/20 border-red-200 text-red-800 dark:text-red-200'
           }`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center gap-3">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span className="font-medium">
+                <span className="font-medium text-base">
                   {canSendMessage 
                     ? `${chatMessagesToday} of ${chatLimit} daily messages used`
                     : `Daily limit reached (${chatLimit} messages)`
@@ -158,7 +158,7 @@ const AIChatInterface = ({ userData, userTier = 'free', chatMessagesToday = 0, c
               {!canSendMessage && (
                 <button
                   onClick={() => setShowUpgradeModal(true)}
-                  className="px-3 py-1 bg-primary text-white rounded-md hover:bg-opacity-90 text-sm font-medium"
+                  className="px-5 py-2 bg-primary border-2 border-primary text-white rounded-lg hover:shadow-soft-lg transition-all text-base font-medium transform hover:scale-105"
                 >
                   Upgrade
                 </button>
@@ -167,176 +167,176 @@ const AIChatInterface = ({ userData, userTier = 'free', chatMessagesToday = 0, c
           </div>
         )}
         
-        <form onSubmit={sendMessage} className="flex">
+        <form onSubmit={sendMessage} className="flex gap-3">
           <input
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={canSendMessage ? "Ask me anything..." : "Daily limit reached - upgrade to continue"}
-            className="flex-1 rounded-l-lg border-2 border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-2 focus:ring-primary focus:border-primary transition-shadow p-2"
+            className="flex-1 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-4 focus:ring-primary/10 focus:border-primary hover:border-gray-300 transition-all px-5 py-4 text-lg"
             disabled={isLoading || !canSendMessage}
           />
           <button
             type="submit"
-            className="bg-primary text-white px-4 py-2 rounded-r-lg hover:bg-opacity-90 transition-opacity disabled:opacity-50"
+            className="bg-primary border-2 border-primary text-white px-6 py-4 rounded-lg hover:shadow-soft-lg transition-all disabled:opacity-50 transform hover:scale-105"
             disabled={isLoading || !inputValue.trim() || !canSendMessage}
           >
-            <span className="material-symbols-outlined">
+            <span className="material-symbols-outlined text-2xl">
               arrow_upward
             </span>
           </button>
         </form>
-        <p className="text-center text-xs text-subtle-light dark:text-subtle-dark mt-3">
+        <p className="text-center text-base text-gray-500 dark:text-gray-400 mt-5">
           Powered by Claude Sonnet 4 • {userTier === 'free' ? `${chatLimit} free messages daily` : userTier === 'premium' ? `${chatLimit} messages daily` : 'Unlimited conversations'}
         </p>
       </div>
       
       {/* Upgrade Modal */}
       {showUpgradeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-start mb-6">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Upgrade Your Experience</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl p-10 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-soft-xl">
+            <div className="flex justify-between items-start mb-8">
+              <h2 className="text-4xl font-bold text-gray-900 dark:text-white">Upgrade Your Experience</h2>
               <button
                 onClick={() => setShowUpgradeModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2"
               >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
             
-            <p className="text-gray-600 dark:text-gray-300 mb-8">
+            <p className="text-lg text-gray-600 dark:text-gray-300 mb-10 leading-relaxed">
               You've reached your daily chat limit. Upgrade to continue conversations with your AI astrologer and unlock premium features.
             </p>
             
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-3 gap-8">
               {/* Free Tier */}
-              <div className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                <div className="text-center mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Free</h3>
-                  <div className="mt-2">
-                    <span className="text-4xl font-bold text-gray-900 dark:text-white">$0</span>
-                    <span className="text-gray-500 dark:text-gray-400">/month</span>
+              <div className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-8">
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Free</h3>
+                  <div className="mt-3">
+                    <span className="text-5xl font-bold text-gray-900 dark:text-white">$0</span>
+                    <span className="text-lg text-gray-500 dark:text-gray-400">/month</span>
                   </div>
                 </div>
-                <ul className="space-y-3 mb-6">
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <ul className="space-y-4 mb-8">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">5 AI chats per day</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">5 AI chats per day</span>
                   </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">Basic questionnaire (5 sections)</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">Basic questionnaire (5 sections)</span>
                   </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">Limited insights</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">Limited insights</span>
                   </li>
                 </ul>
                 <button
                   disabled
-                  className="w-full py-2 px-4 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed"
+                  className="w-full py-4 px-6 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg cursor-not-allowed text-lg font-medium"
                 >
                   Current Plan
                 </button>
               </div>
               
               {/* Premium Tier */}
-              <div className="border-2 border-primary rounded-lg p-6 relative shadow-lg transform scale-105">
+              <div className="border-2 border-primary rounded-lg p-8 relative shadow-soft-lg transform scale-105">
                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                  <span className="bg-primary text-white px-4 py-1 rounded-full text-sm font-semibold">
+                  <span className="bg-primary text-white px-6 py-2 rounded-full text-base font-semibold">
                     POPULAR
                   </span>
                 </div>
-                <div className="text-center mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Premium</h3>
-                  <div className="mt-2">
-                    <span className="text-4xl font-bold text-gray-900 dark:text-white">$19</span>
-                    <span className="text-gray-500 dark:text-gray-400">/month</span>
+                <div className="text-center mb-6 mt-4">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Premium</h3>
+                  <div className="mt-3">
+                    <span className="text-5xl font-bold text-gray-900 dark:text-white">$19</span>
+                    <span className="text-lg text-gray-500 dark:text-gray-400">/month</span>
                   </div>
                 </div>
-                <ul className="space-y-3 mb-6">
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <ul className="space-y-4 mb-8">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">25 AI chats per day</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">25 AI chats per day</span>
                   </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">Full questionnaire (9 sections)</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">Full questionnaire (9 sections)</span>
                   </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">Advanced pattern analysis</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">Advanced pattern analysis</span>
                   </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">Crystal recommendations</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">Crystal recommendations</span>
                   </li>
                 </ul>
-                <button className="w-full py-2 px-4 bg-primary text-white rounded-lg hover:bg-opacity-90 transition-all">
+                <button className="w-full py-4 px-6 bg-primary border-2 border-primary text-white rounded-lg hover:shadow-soft-lg transition-all transform hover:scale-105 text-lg font-medium">
                   Upgrade to Premium
                 </button>
               </div>
               
               {/* Pro Tier */}
-              <div className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                <div className="text-center mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Pro</h3>
-                  <div className="mt-2">
-                    <span className="text-4xl font-bold text-gray-900 dark:text-white">$49</span>
-                    <span className="text-gray-500 dark:text-gray-400">/month</span>
+              <div className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-8">
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Pro</h3>
+                  <div className="mt-3">
+                    <span className="text-5xl font-bold text-gray-900 dark:text-white">$49</span>
+                    <span className="text-lg text-gray-500 dark:text-gray-400">/month</span>
                   </div>
                 </div>
-                <ul className="space-y-3 mb-6">
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <ul className="space-y-4 mb-8">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">100 AI chats per day</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">100 AI chats per day</span>
                   </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">All Premium features</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">All Premium features</span>
                   </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">Priority AI responses</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">Priority AI responses</span>
                   </li>
-                  <li className="flex items-start">
-                    <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <li className="flex items-start gap-3">
+                    <svg className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-gray-600 dark:text-gray-300">Export reports</span>
+                    <span className="text-base text-gray-600 dark:text-gray-300">Export reports</span>
                   </li>
                 </ul>
-                <button className="w-full py-2 px-4 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg hover:bg-opacity-90 transition-all">
+                <button className="w-full py-4 px-6 bg-cosmic-gold border-2 border-cosmic-gold text-white rounded-lg hover:shadow-soft-lg transition-all transform hover:scale-105 text-lg font-medium">
                   Upgrade to Pro
                 </button>
               </div>
             </div>
             
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="mt-10 text-center">
+              <p className="text-base text-gray-500 dark:text-gray-400">
                 All plans include access to Dashboard, Journal, Goals, and Crystal features
               </p>
             </div>

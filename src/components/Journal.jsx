@@ -131,23 +131,23 @@ const Journal = ({ userData }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-10">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+        <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-6">
           Your Sacred Journal
         </h1>
-        <p className="text-lg text-gray-600 dark:text-gray-300">
+        <p className="text-xl text-gray-600 dark:text-gray-300">
           Every entry helps the AI understand you more deeply
         </p>
       </div>
 
       {/* Current Moon Phase & Date */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+      <div className="bg-primary border border-primary/20 rounded-xl shadow-soft-lg p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-indigo-100 text-sm mb-1">Today's Date</p>
-            <p className="text-2xl font-bold">{new Date().toLocaleDateString('en-US', { 
+            <p className="text-white/80 text-base mb-2">Today's Date</p>
+            <p className="text-3xl font-bold">{new Date().toLocaleDateString('en-US', { 
               weekday: 'long', 
               year: 'numeric', 
               month: 'long', 
@@ -155,9 +155,9 @@ const Journal = ({ userData }) => {
             })}</p>
           </div>
           <div className="text-right">
-            <p className="text-indigo-100 text-sm mb-1">Current Moon Phase</p>
-            <p className="text-2xl font-bold flex items-center justify-end">
-              <span className="mr-2">🌙</span> {getCurrentMoonPhase()}
+            <p className="text-white/80 text-base mb-2">Current Moon Phase</p>
+            <p className="text-3xl font-bold flex items-center justify-end gap-3">
+              <span className="text-4xl">🌙</span> {getCurrentMoonPhase()}
             </p>
           </div>
         </div>
@@ -165,24 +165,24 @@ const Journal = ({ userData }) => {
 
       {/* Journal Prompts */}
       {showPrompts && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+        <div className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft-lg p-10">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
             Choose a Prompt (or write freely)
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {journalPrompts.map(prompt => (
               <button
                 key={prompt.id}
                 onClick={() => selectPrompt(prompt)}
-                className="text-left bg-gray-50 dark:bg-gray-900 rounded-lg p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-2 border-transparent hover:border-indigo-600 transition-all"
+                className="text-left bg-white dark:bg-gray-900 border-2 border-gray-200 rounded-lg p-6 hover:bg-soft-indigo dark:hover:bg-indigo-900/20 hover:border-primary transition-all transform hover:scale-105"
               >
-                <div className="flex items-start">
-                  <span className="text-3xl mr-3">{prompt.icon}</span>
+                <div className="flex items-start gap-4">
+                  <span className="text-4xl">{prompt.icon}</span>
                   <div>
-                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-1">
+                    <p className="text-sm font-semibold text-primary dark:text-indigo-400 uppercase tracking-wide mb-2">
                       {prompt.category}
                     </p>
-                    <p className="text-gray-900 dark:text-white font-medium">
+                    <p className="text-base text-gray-900 dark:text-white font-medium leading-relaxed">
                       {prompt.prompt}
                     </p>
                   </div>
@@ -192,7 +192,7 @@ const Journal = ({ userData }) => {
           </div>
           <button
             onClick={() => setShowPrompts(false)}
-            className="w-full bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors font-medium"
+            className="w-full bg-white dark:bg-gray-900 border-2 border-gray-200 text-gray-700 dark:text-gray-300 py-4 rounded-lg hover:border-primary hover:shadow-soft transition-all font-medium text-lg"
           >
             Write Freely (No Prompt)
           </button>
@@ -201,13 +201,13 @@ const Journal = ({ userData }) => {
 
       {/* Writing Area */}
       {!showPrompts && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+        <div className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft-lg p-10">
           {selectedPrompt && (
-            <div className="mb-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 border-l-4 border-indigo-600">
-              <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-1">
+            <div className="mb-8 bg-soft-indigo dark:bg-indigo-900/20 rounded-lg p-6 border-l-4 border-primary">
+              <p className="text-sm font-semibold text-primary dark:text-indigo-400 uppercase tracking-wide mb-2">
                 Today's Prompt
               </p>
-              <p className="text-lg text-gray-900 dark:text-white font-medium">
+              <p className="text-xl text-gray-900 dark:text-white font-medium leading-relaxed">
                 {selectedPrompt.prompt}
               </p>
               <button
@@ -215,7 +215,7 @@ const Journal = ({ userData }) => {
                   setSelectedPrompt(null);
                   setShowPrompts(true);
                 }}
-                className="mt-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+                className="mt-3 text-base text-primary dark:text-indigo-400 hover:underline font-medium"
               >
                 Choose different prompt
               </button>
@@ -227,29 +227,29 @@ const Journal = ({ userData }) => {
             onChange={(e) => setCurrentEntry(e.target.value)}
             placeholder="Let your thoughts flow freely... There's no right or wrong way to journal. Be honest. Be vulnerable. Be real."
             rows="15"
-            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors resize-none text-lg leading-relaxed"
+            className="w-full px-6 py-5 border-2 border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-4 focus:ring-primary/10 focus:border-primary hover:border-gray-300 transition-colors resize-none text-lg leading-relaxed"
             autoFocus
           />
           
-          <div className="mt-6 flex items-center justify-between">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="mt-8 flex items-center justify-between">
+            <p className="text-base text-gray-500 dark:text-gray-400">
               {currentEntry.length} characters • {Math.ceil(currentEntry.split(' ').length)} words
             </p>
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 onClick={() => {
                   setCurrentEntry('');
                   setSelectedPrompt(null);
                   setShowPrompts(true);
                 }}
-                className="px-6 py-2 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors font-medium"
+                className="px-8 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:border-primary hover:shadow-soft transition-all font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={saveEntry}
                 disabled={!currentEntry.trim()}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                className="px-8 py-3 bg-primary border-2 border-primary text-white rounded-lg hover:shadow-soft-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
               >
                 Save Entry
               </button>
@@ -260,16 +260,16 @@ const Journal = ({ userData }) => {
 
       {/* AI Insights */}
       {insights && (
-        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-            <span className="text-3xl mr-3">🔮</span>
+        <div className="bg-soft-purple border border-purple-200 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl shadow-soft-lg p-10">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-4">
+            <span className="text-4xl">🔮</span>
             AI Insights from Your Recent Entries
           </h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">
+          <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
             Based on your last 7 journal entries, I'm noticing some powerful patterns...
           </p>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
-            <p className="text-gray-700 dark:text-gray-300">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 rounded-lg p-8">
+            <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed">
               {insights.text}
             </p>
           </div>
@@ -278,15 +278,15 @@ const Journal = ({ userData }) => {
 
       {/* Recent Entries */}
       {entries.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+        <div className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft-lg p-10">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
             Recent Entries
           </h2>
-          <div className="space-y-6">
+          <div className="space-y-8">
             {entries.slice(0, 5).map(entry => (
-              <div key={entry.id} className="border-l-4 border-indigo-600 pl-6 py-4 bg-gray-50 dark:bg-gray-900 rounded-r-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              <div key={entry.id} className="border-l-4 border-primary pl-8 py-6 bg-soft-blue dark:bg-gray-900 rounded-r-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-base font-medium text-gray-500 dark:text-gray-400">
                     {new Date(entry.date).toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
@@ -295,17 +295,17 @@ const Journal = ({ userData }) => {
                     })}
                   </p>
                   {entry.prompt && (
-                    <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-full">
+                    <span className="text-sm bg-soft-indigo dark:bg-indigo-900/30 border border-indigo-200 text-indigo-700 dark:text-indigo-300 px-4 py-2 rounded-full font-medium">
                       {entry.prompt.category}
                     </span>
                   )}
                 </div>
                 {entry.prompt && (
-                  <p className="text-sm text-indigo-600 dark:text-indigo-400 mb-2 italic">
+                  <p className="text-base text-primary dark:text-indigo-400 mb-3 italic font-medium">
                     "{entry.prompt.prompt}"
                   </p>
                 )}
-                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                <p className="text-base text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
                   {entry.content.length > 300 
                     ? `${entry.content.substring(0, 300)}...` 
                     : entry.content}
@@ -315,7 +315,7 @@ const Journal = ({ userData }) => {
           </div>
           
           {entries.length > 5 && (
-            <button className="mt-6 w-full bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors font-medium">
+            <button className="mt-8 w-full bg-white dark:bg-gray-900 border-2 border-gray-200 text-gray-700 dark:text-gray-300 py-4 rounded-lg hover:border-primary hover:shadow-soft transition-all font-medium text-lg">
               View All Entries ({entries.length})
             </button>
           )}
@@ -324,12 +324,12 @@ const Journal = ({ userData }) => {
 
       {/* Empty State */}
       {entries.length === 0 && showPrompts && (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">📖</div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+        <div className="text-center py-16">
+          <div className="text-8xl mb-6">📖</div>
+          <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
             Start Your Journey
           </h3>
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className="text-xl text-gray-600 dark:text-gray-300">
             Choose a prompt above to begin journaling
           </p>
         </div>
