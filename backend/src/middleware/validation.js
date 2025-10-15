@@ -29,22 +29,33 @@ const registerValidation = [
   body('email')
     .isEmail()
     .normalizeEmail()
-    .withMessage('Please provide a valid email address'),
+    .withMessage('Please provide a valid email address')
+    .isLength({ max: 255 })
+    .withMessage('Email must not exceed 255 characters'),
   body('password')
-    .isLength({ min: 8, max: 128 })
-    .withMessage('Password must be between 8 and 128 characters')
+    .isLength({ min: 12, max: 128 })
+    .withMessage('Password must be between 12 and 128 characters')
     .matches(/[A-Z]/)
     .withMessage('Password must contain at least one uppercase letter')
     .matches(/[a-z]/)
     .withMessage('Password must contain at least one lowercase letter')
     .matches(/[0-9]/)
-    .withMessage('Password must contain at least one number'),
+    .withMessage('Password must contain at least one number')
+    .matches(/[!@#$%^&*(),.?":{}|<>]/)
+    .withMessage('Password must contain at least one special character'),
   body('name')
     .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Name must be between 2 and 50 characters')
-    .matches(/^[a-zA-Z\s]+$/)
-    .withMessage('Name can only contain letters and spaces'),
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters')
+    .matches(/^[a-zA-Z\s'-]+$/)
+    .withMessage('Name can only contain letters, spaces, hyphens, and apostrophes'),
+  body('username')
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username must be 3-30 characters')
+    .matches(/^[a-zA-Z0-9_-]+$/)
+    .withMessage('Username can only contain letters, numbers, underscores, and hyphens'),
   validate
 ];
 
@@ -81,14 +92,38 @@ const resetPasswordValidation = [
     .notEmpty()
     .withMessage('Reset token is required'),
   body('password')
-    .isLength({ min: 8, max: 128 })
-    .withMessage('Password must be between 8 and 128 characters')
+    .isLength({ min: 12, max: 128 })
+    .withMessage('Password must be between 12 and 128 characters')
     .matches(/[A-Z]/)
     .withMessage('Password must contain at least one uppercase letter')
     .matches(/[a-z]/)
     .withMessage('Password must contain at least one lowercase letter')
     .matches(/[0-9]/)
-    .withMessage('Password must contain at least one number'),
+    .withMessage('Password must contain at least one number')
+    .matches(/[!@#$%^&*(),.?":{}|<>]/)
+    .withMessage('Password must contain at least one special character'),
+  validate
+];
+
+/**
+ * Change password validation
+ */
+const changePasswordValidation = [
+  body('currentPassword')
+    .notEmpty()
+    .withMessage('Current password is required')
+    .isLength({ max: 128 }),
+  body('newPassword')
+    .isLength({ min: 12, max: 128 })
+    .withMessage('New password must be between 12 and 128 characters')
+    .matches(/[A-Z]/)
+    .withMessage('Password must contain at least one uppercase letter')
+    .matches(/[a-z]/)
+    .withMessage('Password must contain at least one lowercase letter')
+    .matches(/[0-9]/)
+    .withMessage('Password must contain at least one number')
+    .matches(/[!@#$%^&*(),.?":{}|<>]/)
+    .withMessage('Password must contain at least one special character'),
   validate
 ];
 
@@ -235,17 +270,104 @@ const mongoIdValidation = (paramName = 'id') => [
   validate
 ];
 
+/**
+ * ML Document validation
+ */
+const mlDocumentValidation = [
+  body('content')
+    .trim()
+    .notEmpty()
+    .withMessage('Content is required')
+    .isLength({ min: 10, max: 10000 })
+    .withMessage('Content must be 10-10000 characters'),
+  body('title')
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('Title must not exceed 200 characters'),
+  body('category')
+    .optional()
+    .trim()
+    .isLength({ max: 50 })
+    .withMessage('Category must not exceed 50 characters')
+    .matches(/^[a-zA-Z0-9_-]+$/)
+    .withMessage('Category can only contain letters, numbers, underscores, and hyphens'),
+  validate
+];
+
+/**
+ * ML Search validation
+ */
+const mlSearchValidation = [
+  body('query')
+    .trim()
+    .notEmpty()
+    .withMessage('Search query is required')
+    .isLength({ min: 1, max: 500 })
+    .withMessage('Query must be 1-500 characters'),
+  body('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100')
+    .toInt(),
+  validate
+];
+
+/**
+ * Sanitize HTML to prevent XSS
+ */
+const sanitizeHTML = (value) => {
+  if (typeof value !== 'string') return value;
+  
+  // Remove dangerous HTML and scripts
+  return value
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '');
+};
+
+/**
+ * Sanitization middleware (apply to all routes)
+ */
+const sanitizeInput = (req, res, next) => {
+  // Sanitize body
+  if (req.body && typeof req.body === 'object') {
+    Object.keys(req.body).forEach(key => {
+      if (typeof req.body[key] === 'string') {
+        req.body[key] = sanitizeHTML(req.body[key]);
+      }
+    });
+  }
+  
+  // Sanitize query params
+  if (req.query && typeof req.query === 'object') {
+    Object.keys(req.query).forEach(key => {
+      if (typeof req.query[key] === 'string') {
+        req.query[key] = sanitizeHTML(req.query[key]);
+      }
+    });
+  }
+  
+  next();
+};
+
 module.exports = {
   validate,
   registerValidation,
   loginValidation,
   forgotPasswordValidation,
   resetPasswordValidation,
+  changePasswordValidation,
   updateProfileValidation,
   analyticsEventValidation,
   paymentValidation,
   subscriptionValidation,
   paginationValidation,
   dateRangeValidation,
-  mongoIdValidation
+  mongoIdValidation,
+  mlDocumentValidation,
+  mlSearchValidation,
+  sanitizeInput,
+  sanitizeHTML
 };

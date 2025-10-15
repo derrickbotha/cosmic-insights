@@ -67,14 +67,22 @@ class AIService {
    * @returns {Promise<Object>} - The analysis results
    */
   async generateCosmicProfile(userData) {
+    // Safety check for userData
+    if (!userData || !userData.astrology) {
+      console.warn('generateCosmicProfile: No user astrological data available');
+      return 'Please complete your questionnaire to receive your cosmic profile.';
+    }
+
+    const astro = userData.astrology || {};
+    
     const prompt = `
       Generate a cosmic profile for a user with the following information:
-      - Birth date: ${userData.birthDate}
-      - Birth time: ${userData.birthTime}
-      - Birth location: ${userData.birthLocation}
-      - Sun sign: ${userData.sunSign}
-      - Moon sign: ${userData.moonSign}
-      - Rising sign: ${userData.risingSign}
+      - Birth date: ${astro.birthDate || 'Unknown'}
+      - Birth time: ${astro.birthTime || 'Unknown'}
+      - Birth location: ${astro.birthPlace || 'Unknown'}
+      - Sun sign: ${astro.sunSign || 'Unknown'}
+      - Moon sign: ${astro.moonSign || 'Unknown'}
+      - Rising sign: ${astro.risingSign || 'Unknown'}
       
       Include insights about their current life season, hidden lessons, and recurring patterns.
     `;
@@ -89,17 +97,25 @@ class AIService {
    * @returns {Promise<Object>} - The analysis results
    */
   async analyzeJournalEntries(journalEntries, userData) {
+    // Safety check for userData
+    if (!userData || !userData.astrology) {
+      console.warn('analyzeJournalEntries: No user astrological data available');
+      return 'Please complete your questionnaire to receive personalized journal insights.';
+    }
+
     const entriesText = journalEntries
       .map(entry => `Date: ${entry.date}\nContent: ${entry.content}`)
       .join('\n\n');
+    
+    const astro = userData.astrology || {};
     
     const prompt = `
       Analyze the following journal entries and provide insights based on the user's astrological profile:
       
       User astrological data:
-      - Sun sign: ${userData.sunSign}
-      - Moon sign: ${userData.moonSign}
-      - Rising sign: ${userData.risingSign}
+      - Sun sign: ${astro.sunSign || 'Unknown'}
+      - Moon sign: ${astro.moonSign || 'Unknown'}
+      - Rising sign: ${astro.risingSign || 'Unknown'}
       
       Journal entries:
       ${entriesText}
@@ -115,17 +131,25 @@ class AIService {
    * @returns {Promise<Object>} - Goal recommendations and implementation plan
    */
   async generateAlignedGoals(userData, values) {
+    // Safety check for userData
+    if (!userData || !userData.astrology) {
+      console.warn('generateAlignedGoals: No user astrological data available');
+      return 'Please complete your questionnaire to receive personalized goal recommendations.';
+    }
+
     const valuesText = values
       .map(value => `- ${value.name}: ${value.description}`)
       .join('\n');
+    
+    const astro = userData.astrology || {};
     
     const prompt = `
       Help design an authentic life aligned with the user's values and astrological profile:
       
       User astrological data:
-      - Sun sign: ${userData.sunSign}
-      - Moon sign: ${userData.moonSign}
-      - Rising sign: ${userData.risingSign}
+      - Sun sign: ${astro.sunSign || 'Unknown'}
+      - Moon sign: ${astro.moonSign || 'Unknown'}
+      - Rising sign: ${astro.risingSign || 'Unknown'}
       
       User values:
       ${valuesText}

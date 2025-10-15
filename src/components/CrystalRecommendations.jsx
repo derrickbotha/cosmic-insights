@@ -7,6 +7,13 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [focusCategory, setFocusCategory] = useState(userData?.focusCategory || '');
 
+  // Debug logging
+  useEffect(() => {
+    console.log('CrystalRecommendations mounted/updated');
+    console.log('userData:', userData);
+    console.log('onNavigate function:', onNavigate);
+  }, [userData, onNavigate]);
+
   useEffect(() => {
     if (userData) {
       analyzeUserData();
@@ -40,26 +47,65 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
 
   if (!userData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 dark:from-gray-900 dark:via-purple-900 dark:to-indigo-900 p-8">
+      <div className="min-h-screen bg-white dark:from-gray-900 dark:via-purple-900 dark:to-indigo-900 p-8">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 text-center">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-              <svg className="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft-xl p-16 text-center">
+            <div className="w-24 h-24 mx-auto mb-8 rounded-full bg-soft-purple border border-purple-200 flex items-center justify-center">
+              <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
               Complete Your Profile First
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-8">
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-6 max-w-2xl mx-auto leading-relaxed">
               To receive personalized crystal recommendations based on your astrological blueprint and life journey, 
               please complete the questionnaire and add some journal entries.
             </p>
+            <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+              <p className="text-sm font-mono text-blue-900">
+                <strong>Debug Info:</strong><br/>
+                onNavigate function: {onNavigate ? '✅ Exists' : '❌ Missing'}<br/>
+                Type: {typeof onNavigate}
+              </p>
+            </div>
+            
+            {/* Test button with alert */}
             <button 
-              onClick={() => onNavigate && onNavigate('questionnaire')}
-              className="px-6 py-3 bg-gradient-to-r from-primary to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+              onClick={() => alert('Button is clickable! Check console for navigation logs.')}
+              className="px-6 py-3 bg-yellow-500 text-white rounded-lg font-bold mb-4 hover:bg-yellow-600 cursor-pointer"
             >
-              Start Questionnaire
+              🧪 TEST: Click Me First
+            </button>
+            
+            {/* Main navigation button */}
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                console.log('🔵 BUTTON CLICKED!');
+                console.log('🔵 Event:', e);
+                console.log('🔵 onNavigate exists?', !!onNavigate);
+                console.log('🔵 onNavigate type:', typeof onNavigate);
+                
+                if (onNavigate) {
+                  console.log('✅ Calling onNavigate("questionnaire")...');
+                  try {
+                    onNavigate('questionnaire');
+                    console.log('✅ Navigation call completed!');
+                    alert('Navigation function called! Page should change now.');
+                  } catch (error) {
+                    console.error('❌ Navigation error:', error);
+                    alert('ERROR: ' + error.message);
+                  }
+                } else {
+                  console.error('❌ onNavigate function not provided!');
+                  alert('ERROR: Navigation function is missing! Check console.');
+                }
+              }}
+              className="px-8 py-4 bg-gradient-to-r from-primary to-purple-600 text-white rounded-xl font-bold hover:shadow-soft-xl transition-all transform hover:scale-105 cursor-pointer text-lg block mx-auto"
+              style={{ zIndex: 1000, position: 'relative' }}
+            >
+              🚀 Start Questionnaire
             </button>
           </div>
         </div>
@@ -68,29 +114,29 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 dark:from-gray-900 dark:via-purple-900 dark:to-indigo-900 p-8">
+    <div className="min-h-screen bg-white dark:from-gray-900 dark:via-purple-900 dark:to-indigo-900 p-10">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-block p-3 bg-purple-100 dark:bg-purple-900 rounded-2xl mb-4">
-            <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="text-center mb-16">
+          <div className="inline-block p-5 bg-soft-purple border border-purple-200 rounded-2xl mb-6">
+            <svg className="w-16 h-16 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-6">
             Your Crystal Recommendations
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
             Crystals aligned to your planetary energies, emotional patterns, and life focus
           </p>
         </div>
 
         {/* Focus Category Selector */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 mb-8">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+        <div className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft-lg p-8 mb-10">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
             What area of life would you like to focus on?
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {Object.keys(crystalDatabase.focusCategories).map(key => {
               const category = crystalDatabase.focusCategories[key];
               const isSelected = focusCategory === key || (!focusCategory && userData?.focusCategory === key);
@@ -99,13 +145,13 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
                 <button
                   key={key}
                   onClick={() => handleFocusChange(key)}
-                  className={`p-4 rounded-xl font-medium transition-all ${
+                  className={`p-5 rounded-lg font-medium transition-all transform ${
                     isSelected
-                      ? 'bg-gradient-to-br from-primary to-purple-600 text-white shadow-lg scale-105'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      ? 'bg-primary border-2 border-primary text-white shadow-soft-lg scale-105'
+                      : 'bg-white dark:bg-gray-700 border-2 border-gray-200 text-gray-700 dark:text-gray-300 hover:border-primary hover:shadow-soft'
                   }`}
                 >
-                  <div className="text-2xl mb-2">
+                  <div className="text-3xl mb-3">
                     {key === 'career' && '💼'}
                     {key === 'emotionalHealing' && '💚'}
                     {key === 'spiritualGrowth' && '🌟'}
@@ -113,7 +159,7 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
                     {key === 'relationships' && '💕'}
                     {key === 'selfWorth' && '✨'}
                   </div>
-                  <div className="text-xs">{category.name}</div>
+                  <div className="text-sm">{category.name}</div>
                 </button>
               );
             })}
@@ -122,12 +168,12 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
 
         {/* Loading State */}
         {isAnalyzing && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-purple-200 border-t-primary mb-4"></div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+          <div className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft-xl p-16 text-center">
+            <div className="inline-block animate-spin rounded-full h-20 w-20 border-4 border-purple-200 border-t-primary mb-6"></div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Analyzing Your Energy
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-lg text-gray-600 dark:text-gray-400">
               Identifying crystals that resonate with your unique blueprint...
             </p>
           </div>
@@ -137,56 +183,56 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
         {recommendations && !isAnalyzing && (
           <>
             {/* Explanation */}
-            <div className="bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-2xl p-8 mb-8">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <svg className="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+            <div className="bg-soft-purple border border-purple-200 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl p-10 mb-10">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
+                <svg className="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
                 Your Energetic Blueprint
               </h3>
-              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+              <p className="text-lg text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
                 {recommendations.explanation}
               </p>
             </div>
 
             {/* Primary Crystals */}
-            <div className="mb-8">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            <div className="mb-10">
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
                 🔮 Primary Crystals
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {recommendations.primary.slice(0, 6).map((rec, index) => (
                   <div
                     key={index}
                     onClick={() => handleCrystalClick(rec.crystal)}
-                    className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all cursor-pointer p-6 border-2 border-transparent hover:border-primary group"
+                    className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft-lg hover:shadow-soft-xl transition-all cursor-pointer p-8 border-2 border-transparent hover:border-primary group transform hover:scale-105"
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-2xl">
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="w-16 h-16 rounded-full bg-soft-purple border border-purple-200 flex items-center justify-center text-3xl">
                         💎
                       </div>
-                      <span className="text-xs font-medium px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300">
+                      <span className="text-sm font-medium px-4 py-2 rounded-full bg-soft-purple border border-purple-200 text-purple-700 dark:text-purple-300">
                         {rec.category}
                       </span>
                     </div>
                     
-                    <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-primary transition-colors">
+                    <h4 className="text-2xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-primary transition-colors">
                       {rec.crystal.name}
                     </h4>
                     
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                    <p className="text-base text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
                       {rec.crystal.properties}
                     </p>
                     
-                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-base text-gray-700 dark:text-gray-300 font-medium">
                         {rec.reason}
                       </p>
                     </div>
 
                     {rec.crystal.chakra && (
-                      <div className="mt-3 flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <div className="mt-4 flex items-center gap-3 text-sm text-purple-600 dark:text-purple-400">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
                         </svg>
                         {rec.crystal.chakra} Chakra
@@ -199,22 +245,22 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
 
             {/* Supportive Crystals */}
             {recommendations.supportive.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              <div className="mb-10">
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
                   ✨ Supportive Crystals
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {recommendations.supportive.map((rec, index) => (
                     <div
                       key={index}
                       onClick={() => handleCrystalClick(rec.crystal)}
-                      className="bg-white dark:bg-gray-800 rounded-xl shadow hover:shadow-xl transition-all cursor-pointer p-4"
+                      className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft hover:shadow-soft-lg transition-all cursor-pointer p-6 transform hover:scale-105"
                     >
-                      <div className="text-2xl mb-2">💫</div>
-                      <h4 className="font-bold text-gray-900 dark:text-white mb-1">
+                      <div className="text-3xl mb-3">💫</div>
+                      <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                         {rec.crystal.name}
                       </h4>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                         {rec.reason}
                       </p>
                     </div>
@@ -225,46 +271,46 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
 
             {/* Rituals */}
             {recommendations.rituals.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              <div className="mb-10">
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
                   🌙 Suggested Rituals
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {recommendations.rituals.map((ritual, index) => (
                     <div
                       key={index}
-                      className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6"
+                      className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft-lg p-8"
                     >
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-xl flex-shrink-0">
+                      <div className="flex items-start gap-5 mb-6">
+                        <div className="w-16 h-16 rounded-full bg-soft-indigo border border-indigo-200 flex items-center justify-center text-2xl flex-shrink-0">
                           {index === 0 && '🌅'}
                           {index === 1 && '🌙'}
                           {index === 2 && '🌕'}
                           {index === 3 && '🔮'}
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-gray-900 dark:text-white mb-1">
+                          <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                             {ritual.name}
                           </h4>
-                          <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                          <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">
                             {ritual.timing}
                           </p>
                         </div>
                       </div>
                       
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                      <p className="text-base text-gray-700 dark:text-gray-300 mb-6 leading-relaxed">
                         {ritual.description}
                       </p>
 
-                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                      <div className="pt-5 border-t border-gray-200 dark:border-gray-700">
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mb-3 font-medium">
                           Crystals to use:
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-3">
                           {ritual.crystals.map((crystal, i) => (
                             <span
                               key={i}
-                              className="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium"
+                              className="px-4 py-2 bg-soft-purple border border-purple-200 text-purple-700 dark:text-purple-300 rounded-full text-sm font-medium"
                             >
                               {crystal}
                             </span>
@@ -278,20 +324,20 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
             )}
 
             {/* Crystal Care Tips */}
-            <div className="bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-2xl p-8">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                <svg className="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+            <div className="bg-soft-indigo border border-indigo-200 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl p-10">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
+                <svg className="w-8 h-8 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
                 </svg>
                 Crystal Care & Cleansing
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div>
-                  <h4 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <span className="text-2xl">🌊</span>
+                  <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+                    <span className="text-3xl">🌊</span>
                     Cleansing
                   </h4>
-                  <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                  <ul className="text-base text-gray-700 dark:text-gray-300 space-y-3 leading-relaxed">
                     <li>• Rinse under running water (except water-sensitive stones)</li>
                     <li>• Smudge with sage or palo santo</li>
                     <li>• Place on selenite charging plate</li>
@@ -299,11 +345,11 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
                   </ul>
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <span className="text-2xl">⚡</span>
+                  <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+                    <span className="text-3xl">⚡</span>
                     Charging
                   </h4>
-                  <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                  <ul className="text-base text-gray-700 dark:text-gray-300 space-y-3 leading-relaxed">
                     <li>• Place in sunlight (2-4 hours)</li>
                     <li>• Leave under full moonlight overnight</li>
                     <li>• Set near clear quartz cluster</li>
@@ -311,11 +357,11 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
                   </ul>
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                    <span className="text-2xl">💫</span>
+                  <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+                    <span className="text-3xl">💫</span>
                     Programming
                   </h4>
-                  <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-2">
+                  <ul className="text-base text-gray-700 dark:text-gray-300 space-y-3 leading-relaxed">
                     <li>• Hold crystal in dominant hand</li>
                     <li>• Close your eyes and take 3 deep breaths</li>
                     <li>• State your intention clearly</li>
@@ -330,24 +376,24 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
         {/* Crystal Detail Modal */}
         {selectedCrystal && (
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
             onClick={() => setSelectedCrystal(null)}
           >
             <div
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto"
+              className="bg-white dark:bg-gray-800 border border-gray-100 rounded-xl shadow-soft-xl max-w-2xl w-full p-10 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-3xl">
+              <div className="flex items-start justify-between mb-8">
+                <div className="flex items-center gap-5">
+                  <div className="w-20 h-20 rounded-full bg-soft-purple border border-purple-200 flex items-center justify-center text-4xl">
                     💎
                   </div>
                   <div>
-                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                       {selectedCrystal.name}
                     </h2>
                     {selectedCrystal.chakra && (
-                      <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">
+                      <p className="text-base text-purple-600 dark:text-purple-400 font-medium">
                         {selectedCrystal.chakra} Chakra
                       </p>
                     )}
@@ -355,51 +401,51 @@ const CrystalRecommendations = ({ userData, onNavigate }) => {
                 </div>
                 <button
                   onClick={() => setSelectedCrystal(null)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Properties</h3>
-                  <p className="text-gray-700 dark:text-gray-300">{selectedCrystal.properties}</p>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Properties</h3>
+                  <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">{selectedCrystal.properties}</p>
                 </div>
 
                 {selectedCrystal.use && (
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">How to Use</h3>
-                    <p className="text-gray-700 dark:text-gray-300">{selectedCrystal.use}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">How to Use</h3>
+                    <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">{selectedCrystal.use}</p>
                   </div>
                 )}
 
                 {selectedCrystal.planetaryAffinity && (
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Planetary Affinity</h3>
-                    <p className="text-gray-700 dark:text-gray-300">{selectedCrystal.planetaryAffinity}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Planetary Affinity</h3>
+                    <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">{selectedCrystal.planetaryAffinity}</p>
                   </div>
                 )}
 
-                <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Working with this Crystal</h3>
-                  <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                    <li className="flex items-start gap-2">
-                      <span className="text-purple-600 mt-1">•</span>
+                <div className="pt-8 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-5">Working with this Crystal</h3>
+                  <ul className="space-y-4 text-base text-gray-700 dark:text-gray-300">
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-600 mt-1 text-lg">•</span>
                       <span>Carry in your pocket or wear as jewelry to keep its energy close</span>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-purple-600 mt-1">•</span>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-600 mt-1 text-lg">•</span>
                       <span>Meditate with it placed on the corresponding chakra</span>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-purple-600 mt-1">•</span>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-600 mt-1 text-lg">•</span>
                       <span>Place on your altar or workspace to infuse the space with its energy</span>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-purple-600 mt-1">•</span>
+                    <li className="flex items-start gap-3">
+                      <span className="text-purple-600 mt-1 text-lg">•</span>
                       <span>Sleep with it under your pillow for dream work and subconscious healing</span>
                     </li>
                   </ul>

@@ -1,0 +1,155 @@
+# Robust Startup Script for Cosmic Insights App
+# This script starts and monitors both frontend and backend services
+
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  🌟 Cosmic Insights - Startup Script  " -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Change to app directory
+$AppDir = "C:\Users\dbmos\OneDrive\Documents\Astrology App\Astrology V1.1"
+Set-Location $AppDir
+
+# Function to check if a port is listening
+function Test-Port {
+    param([int]$Port)
+    $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+    return $connection -ne $null
+}
+
+# Function to kill processes on a specific port
+function Stop-ProcessOnPort {
+    param([int]$Port)
+    $processes = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+    if ($processes) {
+        foreach ($proc in $processes) {
+            Stop-Process -Id $proc.OwningProcess -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host "✓ Stopped processes on port $Port" -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+    }
+}
+
+Write-Host "Step 1: Checking Docker services..." -ForegroundColor Green
+Write-Host "-----------------------------------" -ForegroundColor Gray
+
+# Check if Docker is running
+try {
+    docker ps | Out-Null
+    Write-Host "✓ Docker is running" -ForegroundColor Green
+} catch {
+    Write-Host "✗ Docker is not running. Please start Docker Desktop first!" -ForegroundColor Red
+    exit 1
+}
+
+# Start Docker services with Mailpit
+Write-Host ""
+Write-Host "Step 2: Starting backend services (with Mailpit)..." -ForegroundColor Green
+Write-Host "-----------------------------------" -ForegroundColor Gray
+
+docker-compose -f docker-compose.mailpit.yml up -d
+
+Write-Host "✓ Docker services started" -ForegroundColor Green
+Write-Host "  Waiting for services to initialize..." -ForegroundColor Yellow
+Start-Sleep -Seconds 15
+
+# Verify backend is running
+Write-Host ""
+Write-Host "Step 3: Verifying backend health..." -ForegroundColor Green
+Write-Host "-----------------------------------" -ForegroundColor Gray
+
+$maxRetries = 10
+$retryCount = 0
+$backendHealthy = $false
+
+while ($retryCount -lt $maxRetries -and -not $backendHealthy) {
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:5000/health" -TimeoutSec 5 -ErrorAction Stop
+        if ($response.StatusCode -eq 200) {
+            $backendHealthy = $true
+            Write-Host "✓ Backend is healthy (http://localhost:5000)" -ForegroundColor Green
+        }
+    } catch {
+        $retryCount++
+        Write-Host "  Attempt $retryCount/$maxRetries - Waiting for backend..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 3
+    }
+}
+
+if (-not $backendHealthy) {
+    Write-Host "✗ Backend failed to start. Check logs with: docker-compose -f docker-compose.mailpit.yml logs backend" -ForegroundColor Red
+    exit 1
+}
+
+# Clean up any existing frontend processes on port 4000
+Write-Host ""
+Write-Host "Step 4: Preparing frontend environment..." -ForegroundColor Green
+Write-Host "-----------------------------------" -ForegroundColor Gray
+
+Stop-ProcessOnPort -Port 4000
+
+# Start frontend server
+Write-Host ""
+Write-Host "Step 5: Starting frontend server..." -ForegroundColor Green
+Write-Host "-----------------------------------" -ForegroundColor Gray
+
+# Start frontend in a new PowerShell window that stays open
+$frontendScriptContent = "Set-Location '$AppDir'`nWrite-Host '========================================' -ForegroundColor Cyan`nWrite-Host '  Frontend Server (React Dev Server)   ' -ForegroundColor Cyan`nWrite-Host '========================================' -ForegroundColor Cyan`nWrite-Host ''`nWrite-Host 'Starting on http://localhost:4000...' -ForegroundColor Green`nWrite-Host 'Press Ctrl+C to stop the server' -ForegroundColor Yellow`nWrite-Host ''`nnpm start"
+
+$frontendScriptContent | Out-File -FilePath "$AppDir\temp-start-frontend.ps1" -Encoding UTF8
+Start-Process powershell -ArgumentList "-NoExit", "-File", "$AppDir\temp-start-frontend.ps1"
+
+Write-Host "  Waiting for frontend to compile..." -ForegroundColor Yellow
+Start-Sleep -Seconds 10
+
+# Verify frontend is running
+$maxRetries = 15
+$retryCount = 0
+$frontendHealthy = $false
+
+while ($retryCount -lt $maxRetries -and -not $frontendHealthy) {
+    if (Test-Port -Port 4000) {
+        $frontendHealthy = $true
+        Write-Host "✓ Frontend is running (http://localhost:4000)" -ForegroundColor Green
+    } else {
+        $retryCount++
+        Write-Host "  Attempt $retryCount/$maxRetries - Waiting for frontend..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+    }
+}
+
+if (-not $frontendHealthy) {
+    Write-Host "✗ Frontend failed to start. Check the frontend window for errors." -ForegroundColor Red
+    exit 1
+}
+
+# Verify Mailpit is accessible
+Write-Host ""
+Write-Host "Step 6: Verifying email service..." -ForegroundColor Green
+Write-Host "-----------------------------------" -ForegroundColor Gray
+
+try {
+    $response = Invoke-WebRequest -Uri "http://localhost:8025" -TimeoutSec 5 -ErrorAction Stop
+    Write-Host "✓ Mailpit email viewer (http://localhost:8025)" -ForegroundColor Green
+} catch {
+    Write-Host "⚠ Mailpit might not be ready yet" -ForegroundColor Yellow
+}
+
+# Display final status
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  ✓ ALL SERVICES RUNNING SUCCESSFULLY " -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "📱 Frontend:      http://localhost:4000" -ForegroundColor White
+Write-Host "🔧 Backend API:   http://localhost:5000" -ForegroundColor White
+Write-Host "📧 Email Viewer:  http://localhost:8025" -ForegroundColor White
+Write-Host ""
+Write-Host "Quick Commands:" -ForegroundColor Yellow
+Write-Host "  • View backend logs:    docker-compose -f docker-compose.mailpit.yml logs backend -f" -ForegroundColor Gray
+Write-Host "  • Stop all services:    docker-compose -f docker-compose.mailpit.yml down" -ForegroundColor Gray
+Write-Host "  • Restart backend:      docker-compose -f docker-compose.mailpit.yml restart backend" -ForegroundColor Gray
+Write-Host ""
+Write-Host "The frontend server is running in a separate window." -ForegroundColor Cyan
+Write-Host "Press any key to exit this startup script (services will continue running)..." -ForegroundColor Yellow
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")

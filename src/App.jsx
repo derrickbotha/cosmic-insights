@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import AIChatInterface from './components/AIChatInterface';
 import Dashboard from './components/Dashboard';
 import PatternRecognition from './components/PatternRecognition';
@@ -15,6 +16,7 @@ import PaymentModal from './components/PaymentModal';
 import MonitoringDashboard from './components/MonitoringDashboard';
 import MLAdminDashboard from './components/MLAdminDashboard';
 import UserProfile from './components/UserProfile';
+import VerifyEmail from './components/VerifyEmail';
 
 // Services
 import authService from './services/authService';
@@ -26,6 +28,9 @@ import analyticsService from './services/analyticsService';
  * Main App component
  */
 function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [userData, setUserData] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
   const [currentPage, setCurrentPage] = useState('questionnaire'); // questionnaire, dashboard, patterns, journal, goals, crystals, chat, admin
@@ -40,6 +45,10 @@ function App() {
   const [selectedPaymentTier, setSelectedPaymentTier] = useState('premium');
   const [cookieConsent, setCookieConsent] = useState(null);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState(null);
+  const [profileImage, setProfileImage] = useState(null);
+  
+  // Note: Email verification is now handled by VerifyEmail component
   
   // Load user data and preferences
   useEffect(() => {
@@ -64,6 +73,12 @@ function App() {
     } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       // Check system preference for dark mode if no saved preference
       setDarkMode(true);
+    }
+    
+    // Load profile image from localStorage
+    const savedProfileImage = localStorage.getItem('userProfileImage');
+    if (savedProfileImage) {
+      setProfileImage(savedProfileImage);
     }
     
     // Load saved questionnaire data if exists
@@ -338,6 +353,46 @@ function App() {
     }
   };
 
+  // Handle profile image upload
+  const handleProfileImageChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size must be less than 5MB');
+        return;
+      }
+      
+      // Create a FileReader to convert image to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const imageData = reader.result;
+        setProfileImage(imageData);
+        
+        // Save to localStorage
+        localStorage.setItem('userProfileImage', imageData);
+        
+        // Update currentUser state
+        setCurrentUser(prev => ({
+          ...prev,
+          profileImage: imageData
+        }));
+        
+        // Track analytics
+        if (analyticsEnabled) {
+          analyticsService.trackEvent('profile_image_uploaded');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Handle logout with authService
   const handleLogout = async () => {
     try {
@@ -379,7 +434,13 @@ function App() {
       case 'goals':
         return <GoalTracker userData={userData} />;
       case 'crystals':
-        return <CrystalRecommendations userData={userData} onNavigate={setCurrentPage} />;
+        return <CrystalRecommendations 
+          userData={userData} 
+          onNavigate={(page) => {
+            console.log('App.jsx: Navigating to:', page);
+            setCurrentPage(page);
+          }} 
+        />;
       case 'chat':
         return (
           <div className="p-8">
@@ -550,8 +611,44 @@ function App() {
     return <LandingPage onLogin={handleLogin} onRegister={handleRegister} darkMode={darkMode} />;
   }
 
+  // Handle email verification route
+  if (location.pathname === '/verify-email') {
+    return (
+      <VerifyEmail 
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          setIsLoggedIn(true);
+          setCurrentPage('dashboard');
+          setUserTier(user.tier || 'free');
+        }} 
+      />
+    );
+  }
+  
   return (
     <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
+      {/* Email Verification Message */}
+      {verificationMessage && (
+        <div className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] max-w-md w-full mx-4 p-5 rounded-xl shadow-soft-xl ${
+          verificationMessage.type === 'success' 
+            ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-400 text-green-800 dark:text-green-200'
+            : 'bg-red-50 dark:bg-red-900/20 border-2 border-red-400 text-red-800 dark:text-red-200'
+        }`}>
+          <div className="flex items-center gap-4">
+            {verificationMessage.type === 'success' ? (
+              <svg className="w-7 h-7 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-7 h-7 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            <p className="font-medium text-base">{verificationMessage.message}</p>
+          </div>
+        </div>
+      )}
+      
       <div className="flex min-h-screen bg-background-light dark:bg-background-dark text-foreground-light dark:text-foreground-dark">
         {/* Mobile Overlay */}
         {isMobileMenuOpen && (
@@ -564,26 +661,25 @@ function App() {
         {/* Sidebar Navigation */}
         <aside className={`
           fixed lg:static inset-y-0 left-0 z-50
-          w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 
+          w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 
           flex flex-col
           transform transition-transform duration-300 ease-in-out
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
-          {/* Logo Section */}
+          {/* Logo Section with Profile */}
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <svg className="h-8 w-8 text-primary" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z" fill="currentColor"></path>
-                </svg>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800 dark:text-white">Cosmic Insights</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Astrology App</p>
-                </div>
+            {/* Logo and App Name */}
+            <div className="flex items-center gap-3 mb-6">
+              <svg className="h-9 w-9 text-primary" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                <path d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z" fill="currentColor"></path>
+              </svg>
+              <div className="flex-1">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Cosmic Insights</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Astrology App</p>
               </div>
               {/* Mobile Close Button */}
               <button 
-                className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -591,10 +687,80 @@ function App() {
                 </svg>
               </button>
             </div>
+            
+            {/* Profile Section with Image Upload */}
+            <div className="flex items-center gap-4 p-4 bg-soft-indigo dark:bg-gray-700/50 rounded-xl border-2 border-primary/20">
+              {/* Profile Image Circle - Perfectly Circular */}
+              <div className="relative group">
+                <input
+                  type="file"
+                  id="profile-image-upload"
+                  accept="image/*"
+                  onChange={handleProfileImageChange}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="profile-image-upload"
+                  className="block relative cursor-pointer"
+                  style={{ width: '64px', height: '64px' }} // Mathematically perfect circle
+                >
+                  {/* Circular Image Container */}
+                  <div 
+                    className="w-full h-full rounded-full overflow-hidden border-4 border-primary shadow-soft-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center"
+                    style={{ 
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%' // Perfect circle
+                    }}
+                  >
+                    {profileImage || currentUser?.profileImage ? (
+                      <img
+                        src={profileImage || currentUser?.profileImage}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                        style={{ width: '64px', height: '64px' }}
+                      />
+                    ) : (
+                      <span className="text-white font-bold text-2xl">
+                        {currentUser?.username?.[0]?.toUpperCase() || 
+                         currentUser?.name?.[0]?.toUpperCase() || 
+                         userData?.astrology?.sunSign?.[0] || 
+                         'U'}
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                </label>
+              </div>
+              
+              {/* Username and Tier Info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold text-gray-900 dark:text-white truncate">
+                  @{currentUser?.username || 
+                    (currentUser?.email || userData?.email || '').split('@')[0] || 
+                    'user'}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 capitalize flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${
+                    userTier === 'pro' ? 'bg-cosmic-gold' :
+                    userTier === 'premium' ? 'bg-purple-500' :
+                    'bg-gray-400'
+                  }`}></span>
+                  {userTier} Member
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Navigation Items */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <nav className="flex-1 p-6 space-y-3 overflow-y-auto">
             {navigationItems.map(item => {
               const isActive = currentPage === item.id;
               const isDisabled = item.requiresCompletion && !questionnaireCompleted;
@@ -609,18 +775,18 @@ function App() {
                     }
                   }}
                   disabled={isDisabled}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                  className={`w-full flex items-center gap-4 px-5 py-4 rounded-lg font-medium transition-all ${
                     isActive
-                      ? 'bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg'
+                      ? 'bg-primary border-2 border-primary text-white shadow-soft-lg transform scale-105'
                       : isDisabled
-                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-soft-indigo dark:hover:bg-gray-700 border-2 border-transparent hover:border-primary/20 hover:shadow-soft'
                   }`}
                 >
-                  <span className={isDisabled ? 'opacity-50' : ''}>{item.icon}</span>
-                  <span className="flex-1 text-left">{item.name}</span>
+                  <span className="text-lg">{item.icon}</span>
+                  <span className="flex-1 text-left text-base">{item.name}</span>
                   {isDisabled && (
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                     </svg>
                   )}
@@ -630,27 +796,27 @@ function App() {
           </nav>
 
           {/* User Profile & Settings */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+          <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
             {/* Upgrade Button for Free/Premium Users */}
             {userTier !== 'pro' && (
               <button
                 onClick={() => handleUpgradeClick(userTier === 'free' ? 'premium' : 'pro')}
-                className="w-full mb-4 px-4 py-3 rounded-xl bg-gradient-to-r from-primary to-purple-600 text-white font-medium hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                className="w-full mb-4 px-6 py-4 rounded-lg bg-cosmic-gold text-white font-semibold hover:shadow-soft-lg transform hover:scale-105 transition-all flex items-center justify-center gap-3"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                Upgrade to {userTier === 'free' ? 'Premium' : 'Pro'}
+                <span>Upgrade to {userTier === 'free' ? 'Premium' : 'Pro'}</span>
               </button>
             )}
 
             {/* Current Tier Display */}
-            <div className="mb-4 p-3 bg-gradient-to-r from-primary/10 to-purple-600/10 rounded-lg border border-primary/20">
+            <div className="mb-4 p-4 bg-soft-indigo rounded-lg border-2 border-primary/30">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Current Plan
                 </span>
-                <span className="text-sm font-bold text-primary capitalize">
+                <span className="text-base font-bold text-primary capitalize">
                   {userTier}
                 </span>
               </div>
@@ -658,23 +824,23 @@ function App() {
 
             {/* Chat Usage Indicator */}
             {currentPage === 'chat' && (
-              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              <div className="p-4 bg-soft-purple rounded-lg border border-purple-200 dark:border-purple-700">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Daily Chat Usage
                   </span>
-                  <span className="text-xs font-bold text-primary">
+                  <span className="text-sm font-bold text-primary">
                     {chatMessagesToday}/{getChatLimit()}
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                   <div 
-                    className="bg-gradient-to-r from-primary to-purple-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-primary h-3 rounded-full transition-all duration-500"
                     style={{ width: `${Math.min((chatMessagesToday / getChatLimit()) * 100, 100)}%` }}
                   />
                 </div>
                 {chatMessagesToday >= getChatLimit() && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-3 font-medium">
                     Daily limit reached. Upgrade for more!
                   </p>
                 )}
@@ -683,7 +849,7 @@ function App() {
 
             <button 
               onClick={toggleDarkMode}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+              className="w-full flex items-center gap-4 px-5 py-4 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-soft-indigo dark:hover:bg-gray-700 border-2 border-transparent hover:border-primary/20 transition-all"
             >
               {darkMode ? (
                 <>
@@ -702,21 +868,16 @@ function App() {
               )}
             </button>
 
-            {userData && (
-              <div className="flex items-center gap-3 px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl">
-                <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {userData.astrology?.sunSign?.[0] || 'U'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {userData.astrology?.sunSign || 'User'}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                    {userTier} Member
-                  </p>
-                </div>
-              </div>
-            )}
+            {/* Logout Button */}
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center gap-4 px-5 py-4 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border-2 border-transparent hover:border-red-200 dark:hover:border-red-800 transition-all font-medium"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>Logout</span>
+            </button>
           </div>
         </aside>
 
@@ -812,18 +973,18 @@ function App() {
 
       {/* Login Modal */}
       {showLoginModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-8">
-            <div className="flex justify-between items-start mb-6">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-6 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-10">
+            <div className="flex justify-between items-start mb-8">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome Back</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Sign in to your cosmic journey</p>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome Back</h2>
+                <p className="text-base text-gray-600 dark:text-gray-400 mt-2">Sign in to your cosmic journey</p>
               </div>
               <button
                 onClick={() => setShowLoginModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-2"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -835,9 +996,9 @@ function App() {
               const password = e.target.password.value;
               handleLogin(email, password);
             }}>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-base font-medium text-gray-700 dark:text-gray-300 mb-3">
                     Email
                   </label>
                   <input
@@ -845,12 +1006,12 @@ function App() {
                     name="email"
                     required
                     placeholder="your@email.com"
-                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                    className="w-full px-5 py-4 rounded-lg border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-gray-300 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-base font-medium text-gray-700 dark:text-gray-300 mb-3">
                     Password
                   </label>
                   <input
@@ -858,21 +1019,21 @@ function App() {
                     name="password"
                     required
                     placeholder="••••••••"
-                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                    className="w-full px-5 py-4 rounded-lg border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-gray-300 transition-all"
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" className="rounded border-gray-300 text-primary focus:ring-primary" />
+                <div className="flex items-center justify-between text-base">
+                  <label className="flex items-center gap-3">
+                    <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary" />
                     <span className="text-gray-600 dark:text-gray-400">Remember me</span>
                   </label>
-                  <button type="button" onClick={() => alert('Password reset feature coming soon!')} className="text-primary hover:underline">Forgot password?</button>
+                  <button type="button" onClick={() => alert('Password reset feature coming soon!')} className="text-primary hover:underline font-medium">Forgot password?</button>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 px-4 bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg font-medium hover:shadow-lg transition-all"
+                  className="w-full py-4 px-6 bg-primary text-white rounded-lg font-semibold hover:shadow-soft-lg transform hover:scale-105 transition-all text-base"
                 >
                   Sign In
                 </button>

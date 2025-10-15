@@ -1,0 +1,308 @@
+# Docker Compose with Postal (Production Self-Hosted Email Server)
+# Postal is a complete mail server for sending and receiving emails
+# Perfect for GCP deployment with your own domain
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: cosmic-mongodb-prod
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: cosmic-insights
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - cosmic-network
+
+  # MariaDB for Postal
+  postal-mariadb:
+    image: mariadb:10.11
+    container_name: cosmic-postal-mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: postal_root_password_change_me
+      MYSQL_DATABASE: postal
+      MYSQL_USER: postal
+      MYSQL_PASSWORD: postal_password_change_me
+    volumes:
+      - postal_mariadb_data:/var/lib/mysql
+    networks:
+      - cosmic-network
+    command: --innodb-buffer-pool-size=512M --max-connections=200
+
+  # RabbitMQ for Postal
+  postal-rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: cosmic-postal-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: postal
+      RABBITMQ_DEFAULT_PASS: postal_rabbitmq_password_change_me
+    volumes:
+      - postal_rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - cosmic-network
+    ports:
+      - "15672:15672"  # Management UI
+
+  # Postal - Self-Hosted Email Server
+  postal:
+    image: ghcr.io/postalserver/postal:latest
+    container_name: cosmic-postal
+    restart: always
+    ports:
+      - "25:25"      # SMTP
+      - "587:587"    # SMTP Submission
+      - "2525:2525"  # Alternative SMTP
+      - "5000:5000"  # Web UI (change if conflicts with backend)
+    environment:
+      POSTAL_DATABASE_HOST: postal-mariadb
+      POSTAL_DATABASE_NAME: postal
+      POSTAL_DATABASE_USERNAME: postal
+      POSTAL_DATABASE_PASSWORD: postal_password_change_me
+      POSTAL_RABBITMQ_HOST: postal-rabbitmq
+      POSTAL_RABBITMQ_USERNAME: postal
+      POSTAL_RABBITMQ_PASSWORD: postal_rabbitmq_password_change_me
+      POSTAL_RABBITMQ_VHOST: postal
+      # Domain Configuration
+      POSTAL_WEB_HOSTNAME: mail.yourdomain.com
+      POSTAL_SMTP_HOSTNAME: mail.yourdomain.com
+      # Admin Configuration
+      POSTAL_ADMIN_EMAIL: admin@yourdomain.com
+      POSTAL_ADMIN_PASSWORD: change_this_admin_password
+    volumes:
+      - postal_data:/opt/postal/config
+      - postal_assets:/opt/postal/public/assets
+    depends_on:
+      - postal-mariadb
+      - postal-rabbitmq
+    networks:
+      - cosmic-network
+
+  # Backend API with Postal Configuration
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cosmic-backend-prod
+    restart: always
+    ports:
+      - "5001:5000"  # Changed to 5001 since Postal uses 5000
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://mongodb:27017/cosmic-insights
+      
+      # Email Configuration - Postal
+      EMAIL_HOST: postal
+      EMAIL_PORT: 25
+      EMAIL_SECURE: "false"
+      EMAIL_USER: noreply@yourdomain.com  # Change to your domain
+      EMAIL_PASSWORD: your_postal_api_key  # Get from Postal UI
+      EMAIL_FROM_NAME: Cosmic Insights
+      
+      # App Configuration
+      CLIENT_URL: https://yourdomain.com
+      APP_NAME: Cosmic Insights
+      
+      # JWT Secrets (use strong secrets in production!)
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      
+      # Security
+      CSRF_SECRET: ${CSRF_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      
+      # CORS
+      CORS_ORIGIN: https://yourdomain.com
+      
+      # Rate Limiting
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+      
+      # Logging
+      LOG_LEVEL: info
+      
+    volumes:
+      - ./backend/logs:/app/logs
+    depends_on:
+      - mongodb
+      - postal
+    networks:
+      - cosmic-network
+
+  # ML Service (Python/Django)
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cosmic-ml-service-prod
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres-ml:5432/cosmic_ml
+      MONGODB_URI: mongodb://mongodb:27017/cosmic-insights
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: cosmic-insights
+    volumes:
+      - ml_service_data:/app/data
+      - ./ml-service/logs:/app/logs
+    depends_on:
+      - postgres-ml
+      - redis
+      - qdrant
+      - minio
+    networks:
+      - cosmic-network
+
+  # PostgreSQL for ML Service
+  postgres-ml:
+    image: postgres:15-alpine
+    container_name: cosmic-postgres-ml-prod
+    restart: always
+    environment:
+      POSTGRES_DB: cosmic_ml
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_ml_data:/var/lib/postgresql/data
+    networks:
+      - cosmic-network
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cosmic-qdrant-prod
+    restart: always
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - cosmic-network
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: cosmic-minio-prod
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    networks:
+      - cosmic-network
+    command: server /data --console-address ":9001"
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: cosmic-redis-prod
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - cosmic-network
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cosmic-celery-worker-prod
+    restart: always
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres-ml:5432/cosmic_ml
+      MONGODB_URI: mongodb://mongodb:27017/cosmic-insights
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    volumes:
+      - ml_service_data:/app/data
+    depends_on:
+      - redis
+      - postgres-ml
+      - mongodb
+    networks:
+      - cosmic-network
+    command: celery -A config worker --loglevel=info
+
+  # Celery Beat (Scheduler)
+  celery-beat:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: cosmic-celery-beat-prod
+    restart: always
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres-ml:5432/cosmic_ml
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    depends_on:
+      - redis
+      - postgres-ml
+    networks:
+      - cosmic-network
+    command: celery -A config beat --loglevel=info
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: cosmic-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - postal
+    networks:
+      - cosmic-network
+
+volumes:
+  mongodb_data:
+  postal_mariadb_data:
+  postal_rabbitmq_data:
+  postal_data:
+  postal_assets:
+  postgres_ml_data:
+  qdrant_data:
+  minio_data:
+  redis_data:
+  ml_service_data:
+  nginx_logs:
+
+networks:
+  cosmic-network:
+    driver: bridge

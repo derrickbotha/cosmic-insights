@@ -1,15 +1,11 @@
 /**
  * Authentication Service
- * Handles secure authentication, JWT tokens, session management
- * Updated to work with backend API
+ * Handles secure authentication, session management
+ * SECURITY: All crypto operations handled by backend with bcrypt/JWT
+ * Frontend only sends plain credentials over HTTPS and stores tokens
  */
 
-import CryptoJS from 'crypto-js';
-
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const SECRET_KEY = process.env.REACT_APP_SECRET_KEY || 'cosmic-insights-secret-key-2025';
-const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
-const REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 class AuthService {
   constructor() {
@@ -20,91 +16,24 @@ class AuthService {
   }
 
   /**
-   * Hash password using SHA-256 (in production, use bcrypt on backend)
+   * Login user (supports email OR username)
    */
-  hashPassword(password) {
-    return CryptoJS.SHA256(password + SECRET_KEY).toString();
-  }
-
-  /**
-   * Generate JWT-like token (simplified for frontend demo)
-   * In production, this should be done on backend
-   */
-  generateToken(userId, email, role = 'user') {
-    const header = {
-      alg: 'HS256',
-      typ: 'JWT'
-    };
-
-    const payload = {
-      userId,
-      email,
-      role,
-      iat: Date.now(),
-      exp: Date.now() + TOKEN_EXPIRY
-    };
-
-    const encodedHeader = btoa(JSON.stringify(header));
-    const encodedPayload = btoa(JSON.stringify(payload));
-    const signature = CryptoJS.HmacSHA256(
-      `${encodedHeader}.${encodedPayload}`,
-      SECRET_KEY
-    ).toString();
-
-    return `${encodedHeader}.${encodedPayload}.${signature}`;
-  }
-
-  /**
-   * Verify and decode token
-   */
-  verifyToken(token) {
+  async login(emailOrUsername, password) {
     try {
-      const [encodedHeader, encodedPayload, signature] = token.split('.');
+      // Determine if it's an email or username
+      const isEmail = emailOrUsername.includes('@');
       
-      // Verify signature
-      const expectedSignature = CryptoJS.HmacSHA256(
-        `${encodedHeader}.${encodedPayload}`,
-        SECRET_KEY
-      ).toString();
-
-      if (signature !== expectedSignature) {
-        throw new Error('Invalid token signature');
-      }
-
-      // Decode payload
-      const payload = JSON.parse(atob(encodedPayload));
-
-      // Check expiration
-      if (payload.exp < Date.now()) {
-        throw new Error('Token expired');
-      }
-
-      return payload;
-    } catch (error) {
-      console.error('Token verification failed:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Generate CSRF token
-   */
-  generateCSRFToken() {
-    return CryptoJS.lib.WordArray.random(32).toString();
-  }
-
-  /**
-   * Login user
-   */
-  async login(email, password) {
-    try {
+      const requestBody = isEmail 
+        ? { email: emailOrUsername, password }
+        : { username: emailOrUsername, password };
+      
       const response = await fetch(`${this.apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         credentials: 'include', // Include cookies for refresh token
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify(requestBody)
       });
 
       const data = await response.json();
@@ -167,7 +96,7 @@ class AuthService {
 
       if (!this.validatePassword(password)) {
         console.error('Password validation failed');
-        throw new Error('Password must be at least 8 characters with uppercase, lowercase, and number');
+        throw new Error('Password must be at least 12 characters with uppercase, lowercase, number, and special character');
       }
 
       console.log('Sending registration request to:', `${this.apiUrl}/auth/register`);
@@ -377,25 +306,7 @@ class AuthService {
     }
   }
 
-  /**
-   * Refresh access token
-   */
-  async refreshAccessToken() {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) return false;
 
-    const payload = this.verifyToken(refreshToken);
-    if (!payload) {
-      this.logout();
-      return false;
-    }
-
-    // Generate new access token
-    const newToken = this.generateToken(payload.userId, payload.email, payload.role);
-    this.setToken(newToken);
-
-    return true;
-  }
 
   /**
    * Token management
@@ -447,9 +358,9 @@ class AuthService {
   }
 
   validatePassword(password) {
-    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
-    // Allows any characters (not restricted to specific character set)
-    const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    // At least 12 characters, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    // Matches backend password policy (NIST/OWASP guidelines)
+    const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{12,}$/;
     return re.test(password);
   }
 
@@ -487,33 +398,42 @@ class AuthService {
    */
   async changePassword(currentPassword, newPassword) {
     try {
-      const user = this.getCurrentUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const storedUsers = JSON.parse(localStorage.getItem('cosmic_users') || '[]');
-      const userIndex = storedUsers.findIndex(u => u.id === user.userId);
-
-      if (userIndex === -1) throw new Error('User not found');
-
-      // Verify current password
-      const hashedCurrentPassword = this.hashPassword(currentPassword);
-      if (storedUsers[userIndex].password !== hashedCurrentPassword) {
-        throw new Error('Current password is incorrect');
-      }
+      const token = this.getToken();
+      if (!token) throw new Error('Not authenticated');
 
       // Validate new password
       if (!this.validatePassword(newPassword)) {
-        throw new Error('New password must be at least 8 characters with uppercase, lowercase, and number');
+        throw new Error('New password must be at least 12 characters with uppercase, lowercase, number, and special character');
       }
 
-      // Update password
-      storedUsers[userIndex].password = this.hashPassword(newPassword);
-      localStorage.setItem('cosmic_users', JSON.stringify(storedUsers));
+      // Send plain passwords to backend over HTTPS - backend handles bcrypt
+      const response = await fetch(`${this.apiUrl}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          currentPassword, 
+          newPassword 
+        })
+      });
 
-      this.trackEvent('password_changed', { userId: user.userId });
+      const data = await response.json();
 
-      return { success: true };
+      if (!response.ok) {
+        throw new Error(data.error || 'Password change failed');
+      }
+
+      const user = this.getCurrentUser();
+      if (user) {
+        this.trackEvent('password_changed', { userId: user._id });
+      }
+
+      return { success: true, message: data.message };
     } catch (error) {
+      console.error('Password change failed:', error);
       return { success: false, error: error.message };
     }
   }
